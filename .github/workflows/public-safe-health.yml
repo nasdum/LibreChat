@@ -61,4 +61,27 @@ jobs:
           }
           print("log_categories=" + json.dumps([k for k,v in categories.items() if re.search(v,raw,re.I)]))
           print("runtime_error_codes=" + json.dumps(sorted(set(re.findall(r"\bERR_[A-Z_]{3,60}\b", raw)))))
+          # Emit only validation field paths/codes, never messages or config values.
+          validation = []
+          decoder = json.JSONDecoder()
+          for match in re.finditer(r"Invalid custom config file[^\\n]*:\\s*\\{", raw):
+              try:
+                  err, _ = decoder.raw_decode(raw[match.end()-1:])
+              except ValueError:
+                  continue
+              def collect(issues):
+                  for issue in issues:
+                      item = {}
+                      for key in ("path", "keys"):
+                          val = issue.get(key)
+                          if isinstance(val, list) and all(isinstance(x, int) or (isinstance(x, str) and re.fullmatch(r"[A-Za-z0-9_-]{1,80}", x)) for x in val):
+                              item[key] = val
+                      if re.fullmatch(r"[a-z_]{1,50}", str(issue.get("code", ""))):
+                          item["code"] = issue["code"]
+                      if item and item not in validation:
+                          validation.append(item)
+                      for union in issue.get("unionErrors", []):
+                          collect(union.get("issues", union.get("errors", [])))
+              collect(err.get("issues", err.get("errors", [])))
+          print("validation_fields=" + json.dumps(validation))
           PY
