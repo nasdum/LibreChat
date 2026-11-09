@@ -292,6 +292,29 @@ fileConfig:
 # `{...dbConfigs, ...yamlConfigs}`), takže starý `outlook` záznam v UI už nic
 # nedělá - smaž ho, ať tě nemate.
 mcpServers:
+  vendos_pilot:
+    type: 'streamable-http'
+    title: 'VENDOS asistent'
+    description: 'Projektové podklady, návrhy dalších kroků a paměť rozhodnutí na firemním notebooku'
+    url: 'http://172.21.0.1:18089/mcp'
+    startup: false
+    requiresOAuth: false
+    timeout: 90000
+    initTimeout: 10000
+    headers:
+      Authorization: 'Bearer {{VENDOS_PILOT_KEY}}'
+    customUserVars:
+      VENDOS_PILOT_KEY:
+        title: 'Osobní přístup k pilotu VENDOS'
+        description: 'Samostatný přístup pro váš účet, nikoli klíč k placenému AI modelu.'
+        sensitive: true
+    serverInstructions: |
+      Nejdřív načti aktuální přehled projektu a uložená rozhodnutí.
+      Opravu ukládej jen na výslovný pokyn uživatele a zachovej jeho důvod.
+      Nevydávej návrhy za hotové úkoly ani za ověřený stav Velína.
+      Uváděj zdroje a stáří podkladů. Při nedostupnosti notebooku řekni, že
+      se aktuální podklady nepodařilo načíst; nevymýšlej jejich obsah.
+      Neprováděj žádné změny reklam, firemních úkolů nebo odesílání zpráv.
   outlook:
     type: 'streamable-http'
     title: 'Outlook'
@@ -320,6 +343,7 @@ mcpServers:
 # (včetně veřejných MCP endpointů) přestane fungovat. Proto allowedAddresses.
 mcpSettings:
   allowedAddresses:
+    - '172.21.0.1:18089' # VENDOS notebook through restricted SSH relay
     - 'ms365-mcp:3000' # Outlook MCP ve stejné docker síti
     # - 'host.docker.internal:3001'    # kdyby něco běželo na hostu
 
@@ -611,3 +635,4 @@ endpoints:
 #    dostupnost přes `endpoints.agents.capabilities: [tools]` a případný
 #    `includedTools`, který tu záměrně není - je to striktní allowlist a
 #    nejčastější důvod, proč nástroj v UI chybí.
+
