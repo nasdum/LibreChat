@@ -1,0 +1,64 @@
+name: Public-safe API health summary
+
+# Read-only diagnosis. Never print application logs, configuration, tokens,
+# hostnames, network topology, or arbitrary upstream error messages.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/hetzner-ssh
+        with:
+          ssh_key: ${{ secrets.HETZNER_SSH_KEY }}
+          host: ${{ secrets.HETZNER_HOST }}
+          port: ${{ secrets.HETZNER_SSH_PORT || '22' }}
+          user: ${{ secrets.HETZNER_USER || 'root' }}
+      - name: Read bounded health indicators
+        env:
+          HOST: ${{ secrets.HETZNER_HOST }}
+          USER_NAME: ${{ secrets.HETZNER_USER }}
+          PORT: ${{ secrets.HETZNER_SSH_PORT }}
+        run: |
+          ssh -i ~/.ssh/id_deploy -p "${PORT:-22}" -o BatchMode=yes \
+            "${USER_NAME:-root}@$HOST" 'python3 -' <<'PY'
+          import json, re, subprocess
+          def run(args):
+              return subprocess.run(args, capture_output=True, text=True, timeout=30)
+          result = run(["docker", "inspect", "LibreChat-API"])
+          if result.returncode:
+              print("container_found=false")
+              raise SystemExit(1)
+          obj = json.loads(result.stdout)[0]
+          state = obj.get("State", {})
+          print(json.dumps({k: state.get(k) for k in ["Running", "Restarting", "OOMKilled", "ExitCode"]}))
+          print("restart_count=" + str(obj.get("RestartCount")))
+          health = run(["docker", "exec", "LibreChat-API", "curl", "-s", "-o", "/dev/null", "-w", "%{http_code}", "--max-time", "10", "http://127.0.0.1:3080/health"])
+          print("internal_health_http=" + (health.stdout.strip() if re.fullmatch(r"[0-9]{3}", health.stdout.strip()) else "unavailable"))
+          logs = run(["docker", "logs", "--tail", "500", "LibreChat-API"])
+          raw = logs.stdout + logs.stderr
+          categories = {
+              "yaml_parse": r"YAMLException|YAMLParseError|bad indentation|duplicated mapping",
+              "config_validation": r"ZodError|Invalid config|configuration.*invalid|invalid.*configuration",
+              "missing_module": r"Cannot find module|MODULE_NOT_FOUND",
+              "mongo_connection": r"MongoServerSelectionError|MongooseServerSelectionError|MongoNetworkError",
+              "authentication": r"Authentication failed|AuthenticationFailed|bad auth",
+              "dns": r"ENOTFOUND|EAI_AGAIN",
+              "refused_connection": r"ECONNREFUSED",
+              "file_permission": r"EACCES|EPERM",
+              "missing_file": r"ENOENT",
+              "bind_conflict": r"EADDRINUSE",
+              "heap_memory": r"heap out of memory|Allocation failed",
+              "syntax_error": r"SyntaxError",
+              "type_error": r"TypeError",
+              "reference_error": r"ReferenceError",
+              "started": r"Server listening|Server is listening|Listening on|Server running",
+          }
+          print("log_categories=" + json.dumps([k for k,v in categories.items() if re.search(v,raw,re.I)]))
+          print("runtime_error_codes=" + json.dumps(sorted(set(re.findall(r"\bERR_[A-Z_]{3,60}\b", raw)))))
+          PY
