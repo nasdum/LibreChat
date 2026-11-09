@@ -511,6 +511,31 @@ endpoints:
   # Hned za tenhle řádek si bootstrap.sh vkládá své deploy-managed endpointy
   # (Kimi + "OpenRouter (own key)"). Nesahej na odsazení `  custom:`.
   custom:
+    - name: 'VENDOS pilot'
+      provider: 'anthropic'
+      apiKey: 'user_provided'
+      baseURL: 'https://api.anthropic.com'
+      models:
+        default: ['claude-sonnet-5-5']
+        fetch: false
+      modelDisplayLabel: 'VENDOS pilot'
+      titleConvo: false
+      activityLabel: false
+      addParams:
+        max_tokens: 4096
+        thinking:
+          type: 'adaptive'
+        output_config:
+          effort: 'medium'
+      customParams:
+        defaultParamsEndpoint: 'anthropic'
+      tokenConfig:
+        claude-sonnet-5-5:
+          context: 1000000
+          prompt: 2.0
+          completion: 10.0
+          cacheRead: 0.2
+          cacheWrite: 2.5
     - name: 'OpenRouter'
       apiKey: '${OPENROUTER_KEY}'
       baseURL: 'https://openrouter.ai/api/v1'
@@ -636,3 +661,35 @@ endpoints:
 #    `includedTools`, který tu záměrně není - je to striktní allowlist a
 #    nejčastější důvod, proč nástroj v UI chybí.
 
+
+
+# Pilot uses a per-user workspace key expiring before the monthly budget reset.
+# AgentClient skips auxiliary model calls for this endpoint; project memory is MCP-backed.
+modelSpecs:
+  enforce: false
+  prioritize: false
+  list:
+    - name: 'vendos-pilot'
+      label: 'VENDOS asistent'
+      description: 'Projektové podklady, další kroky a paměť rozhodnutí. Pilot do 16. listopadu 2026.'
+      showOnLanding: true
+      webSearch: false
+      fileSearch: false
+      executeCode: false
+      memory: false
+      skills: false
+      mcpServers: ['vendos_pilot']
+      conversation_starters:
+        - 'Co je teď pro VENDOS nejdůležitější a z jakých podkladů vycházíš?'
+        - 'Ukaž návrhy dalších kroků a jejich nejistoty.'
+      preset:
+        endpoint: 'VENDOS pilot'
+        model: 'claude-sonnet-5-5'
+        promptPrefix: |
+          Jsi firemní asistent pro projekt vendos-cz. Mluv česky, stručně a konkrétně.
+          Nejdřív načti project_report a uložená rozhodnutí z MCP vendos_pilot.
+          Uváděj stáří a zdroj podkladů; uložený snímek není aktuální stav úkolů.
+          Navrhuj kroky jako návrhy, ne jako schválené úkoly. Již vyřešené či zamítnuté návrhy neopakuj.
+          Výslovné opravy uživatele ukládej pomocí record_decision, včetně jeho důvodu.
+          Nevymýšlej data GA4 nebo Google Ads, pokud tato data nemáš připojená.
+          Při nedostupnosti notebooku to řekni. Neprováděj změny reklam, úkolů ani odesílání zpráv.

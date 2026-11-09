@@ -3777,3 +3777,27 @@ describe('AgentClient - finalizeSubagentContent', () => {
     ]);
   });
 });
+
+describe('AgentClient - VENDOS pilot budget isolation', () => {
+  it('does not run auxiliary memory, activity or title models for the pilot endpoint', async () => {
+    const client = Object.create(AgentClient.prototype);
+    client.options = { agent: { endpoint: 'VENDOS pilot' } };
+    Object.defineProperty(client.options, 'req', {
+      get() {
+        throw new Error('Pilot auxiliary execution must stop before reading request configuration');
+      },
+    });
+    await expect(client.useMemory()).resolves.toBeUndefined();
+    expect(client.buildActivityLabelWiring('pilot-stream', new AbortController().signal)).toBeUndefined();
+    await expect(client.titleConvo({ text: 'pilot' })).resolves.toBeUndefined();
+  });
+
+  it('preserves the normal memory path for other endpoints', async () => {
+    const client = Object.create(AgentClient.prototype);
+    const readUser = jest.fn(() => ({ personalization: { memories: false } }));
+    client.options = { agent: { endpoint: 'anthropic' }, req: {} };
+    Object.defineProperty(client.options.req, 'user', { get: readUser });
+    await expect(client.useMemory()).resolves.toBeUndefined();
+    expect(readUser).toHaveBeenCalledTimes(1);
+  });
+});

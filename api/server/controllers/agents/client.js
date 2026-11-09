@@ -897,6 +897,9 @@ class AgentClient extends BaseClient {
    * @param {string | undefined} streamId
    */
   buildActivityLabelWiring(streamId, abortSignal) {
+    if (this.options.agent?.endpoint === 'VENDOS pilot') {
+      return;
+    }
     if (!streamId) {
       return undefined;
     }
@@ -1667,6 +1670,9 @@ class AgentClient extends BaseClient {
    * @returns {Promise<{ withKeys?: string; withoutKeys?: string } | undefined>}
    */
   async useMemory() {
+    if (this.options.agent?.endpoint === 'VENDOS pilot') {
+      return;
+    }
     const user = this.options.req.user;
     if (user.personalization?.memories === false) {
       return;
@@ -3463,6 +3469,9 @@ class AgentClient extends BaseClient {
    *   title derives from the user's input only (`contentParts` is empty).
    */
   async titleConvo({ text, abortController, immediate = false }) {
+    if (this.options.agent?.endpoint === 'VENDOS pilot') {
+      return;
+    }
     if (!this.run) {
       if (!immediate) {
         throw new Error('Run not initialized');
