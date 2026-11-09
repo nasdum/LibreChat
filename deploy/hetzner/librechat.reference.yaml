@@ -534,7 +534,7 @@ endpoints:
           context: 1000000
           prompt: 2.0
           completion: 10.0
-          cacheRead: 0.2
+          cacheRead: 0.1
           cacheWrite: 2.5
     - name: 'OpenRouter'
       apiKey: '${OPENROUTER_KEY}'
