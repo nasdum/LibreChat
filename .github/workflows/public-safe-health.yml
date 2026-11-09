@@ -64,7 +64,7 @@ jobs:
           # Emit only validation field paths/codes, never messages or config values.
           validation = []
           decoder = json.JSONDecoder()
-          for match in re.finditer(r"Invalid custom config file[^\\n]*:\\s*\\{", raw):
+          for match in re.finditer(r"Invalid custom config file[^\n]*:\s*\{", raw):
               try:
                   err, _ = decoder.raw_decode(raw[match.end()-1:])
               except ValueError:
