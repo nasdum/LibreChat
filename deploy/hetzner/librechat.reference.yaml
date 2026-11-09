@@ -317,7 +317,7 @@ mcpServers:
       Neprováděj žádné změny reklam, firemních úkolů nebo odesílání zpráv.
   vendos_ga4_readonly:
     type: 'streamable-http'
-    title: 'VENDOS GA4 (čtení)'
+    title: 'VENDOS GA4 read only'
     description: 'Reporty GA4 pro VENDOS, bez změn měření'
     url: 'https://ga4-mcp-erli7emroq-ew.a.run.app/mcp'
     startup: false
@@ -334,7 +334,7 @@ mcpServers:
       Neměň měření, klíčové události, přístupy ani propojení účtů.
   vendos_ads_readonly:
     type: 'streamable-http'
-    title: 'VENDOS Google Ads (čtení)'
+    title: 'VENDOS Google Ads read only'
     description: 'Výkon reklam VENDOS, bez změn kampaní a rozpočtů'
     url: 'https://google-ads-mcp-erli7emroq-ew.a.run.app/mcp'
     startup: false
