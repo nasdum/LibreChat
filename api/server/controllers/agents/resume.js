@@ -2,6 +2,7 @@ const { logger } = require('@librechat/data-schemas');
 const { Constants, EModelEndpoint } = require('librechat-data-provider');
 const {
   GenerationJobManager,
+  withVendosApproval,
   isPendingActionStale,
   mapToolApprovalResolutions,
   resolveAskUserQuestionResume,
@@ -938,18 +939,20 @@ const ResumeAgentController = async (req, res, next, initializeClient, addTitle)
       GenerationJobManager.setContentParts(streamId, client.contentParts, job.createdAt);
     }
 
-    await client.resumeCompletion({
-      resumeValue: mapped.resumeValue,
-      seedContent,
-      runSteps: resumeState?.runSteps ?? [],
-      abortController: job.abortController,
-      // Carry the user's MCP auth so approved MCP tools run with their credentials.
-      userMCPAuthMap: result.userMCPAuthMap,
-      // Replay deferred tools discovered before the pause (captured at pause). The rebuilt
-      // graph passes `messages: []`, so without these the model would lose their schemas.
-      discoveredToolNames: job.metadata?.discoveredTools,
-      activityPhaseSnapshot: job.metadata?.activityPhaseSnapshot,
-    });
+    await withVendosApproval(pendingAction, req.body.decisions, userId, () =>
+      client.resumeCompletion({
+        resumeValue: mapped.resumeValue,
+        seedContent,
+        runSteps: resumeState?.runSteps ?? [],
+        abortController: job.abortController,
+        // Carry the user's MCP auth so approved MCP tools run with their credentials.
+        userMCPAuthMap: result.userMCPAuthMap,
+        // Replay deferred tools discovered before the pause (captured at pause). The rebuilt
+        // graph passes `messages: []`, so without these the model would lose their schemas.
+        discoveredToolNames: job.metadata?.discoveredTools,
+        activityPhaseSnapshot: job.metadata?.activityPhaseSnapshot,
+      }),
+    );
 
     // The model may pause AGAIN (another tool, or a follow-up question). The pending
     // action is already persisted + emitted; leave the job `requires_action`.

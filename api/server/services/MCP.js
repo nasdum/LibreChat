@@ -3,6 +3,7 @@ const { logger, getTenantId } = require('@librechat/data-schemas');
 const { Providers, Constants: AgentConstants } = require('@librechat/agents');
 const {
   sendEvent,
+  attestVendosExecution,
   PENDING_STALE_MS,
   MCPOAuthHandler,
   MCPTokenStorage,
@@ -1092,7 +1093,13 @@ function createToolInstance({
         serverConfig: capturedServerConfig,
         toolName,
         provider,
-        toolArguments,
+        toolArguments: attestVendosExecution(
+          normalizedToolKey,
+          toolArguments,
+          userId,
+          toolCall.id,
+          customUserVars?.VENDOS_PILOT_KEY,
+        ),
         options: {
           signal: derivedSignal,
         },
