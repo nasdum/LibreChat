@@ -3,6 +3,7 @@ import type { TToolApprovalPolicy } from 'librechat-data-provider';
 import type { ToolApprovalHookContext } from './hooks';
 import { isHITLEnabled, mapToolApprovalPolicy } from './policy';
 import { buildToolApprovalHooks } from './hooks';
+import { vendosApprovalHook } from './vendos';
 
 /**
  * The HITL fragment spread onto a `RunConfig` when tool approval is enabled.
@@ -53,6 +54,11 @@ export function buildHITLRunWiring(
       matcher ? { pattern: matcher, hooks: [hook] } : { hooks: [hook] },
     );
   }
+
+  registry.register('PreToolUse', {
+    pattern: '^execute_approved_change_mcp_vendos_pilot$',
+    hooks: [vendosApprovalHook],
+  });
 
   return { humanInTheLoop: { enabled: true }, hooks: registry };
 }

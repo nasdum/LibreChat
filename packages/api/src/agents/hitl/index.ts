@@ -4,3 +4,4 @@ export * from './resume';
 export * from './hooks';
 export * from './hookLoader';
 export * from './askUserQuestionTool';
+export * from './vendos';
