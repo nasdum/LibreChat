@@ -2,8 +2,8 @@ import { HookRegistry, createToolPolicyHook } from '@librechat/agents';
 import type { TToolApprovalPolicy } from 'librechat-data-provider';
 import type { ToolApprovalHookContext } from './hooks';
 import { isHITLEnabled, mapToolApprovalPolicy } from './policy';
-import { vendosApprovalHook } from './vendos';
 import { buildToolApprovalHooks } from './hooks';
+import { vendosApprovalHook } from './vendos';
 
 /**
  * The HITL fragment spread onto a `RunConfig` when tool approval is enabled.
