@@ -23,7 +23,9 @@ describe('buildHITLRunWiring', () => {
     const matchers = wiring?.hooks.getMatchers('PreToolUse') ?? [];
     expect(matchers).toHaveLength(2);
     expect(matchers[1]).toEqual({
-      pattern: '^execute_approved_change_mcp_vendos_pilot
+      pattern: '^execute_approved_change_mcp_vendos_pilot$',
+      hooks: [vendosApprovalHook],
+    });
   });
 
   test('an enabled policy with no lists still wires (every tool falls through to ask)', () => {
@@ -47,50 +49,6 @@ describe('buildHITLRunWiring host-hook composition', () => {
     registerToolApprovalHook(() => undefined);
     const wiring = buildHITLRunWiring({ enabled: true });
     expect(wiring?.hooks.getMatchers('PreToolUse')).toHaveLength(2); // Static baseline and scoped VENDOS gate.
-  });
-
-  test('does not invoke host-hook factories when HITL is disabled', () => {
-    const factory = jest.fn(() => undefined);
-    registerToolApprovalHook(factory);
-    expect(buildHITLRunWiring({ enabled: false })).toBeUndefined();
-    expect(factory).not.toHaveBeenCalled();
-  });
-
-  test('passes the run context to each factory', () => {
-    const factory = jest.fn(() => undefined);
-    registerToolApprovalHook(factory);
-    buildHITLRunWiring({ enabled: true }, { userId: 'u1', conversationId: 'c1' });
-    expect(factory).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: 'u1', conversationId: 'c1' }),
-    );
-  });
-});
-,
-      hooks: [vendosApprovalHook],
-    });
-  });
-
-  test('an enabled policy with no lists still wires (every tool falls through to ask)', () => {
-    const wiring = buildHITLRunWiring({ enabled: true });
-    expect(wiring?.hooks.getMatchers('PreToolUse')).toHaveLength(2);
-  });
-});
-
-describe('buildHITLRunWiring host-hook composition', () => {
-  afterEach(() => clearToolApprovalHooks());
-
-  test('registers the static policy hook PLUS each registered host hook', () => {
-    registerToolApprovalHook(() => async () => ({ decision: 'deny' }));
-    registerToolApprovalHook(() => async () => ({ decision: 'ask' }), { matcher: 'write_.*' });
-    const wiring = buildHITLRunWiring({ enabled: true });
-    // 1 static baseline + 2 host hooks
-    expect(wiring?.hooks.getMatchers('PreToolUse')).toHaveLength(4);
-  });
-
-  test('a factory that opts out (returns undefined) is not registered', () => {
-    registerToolApprovalHook(() => undefined);
-    const wiring = buildHITLRunWiring({ enabled: true });
-    expect(wiring?.hooks.getMatchers('PreToolUse')).toHaveLength(2); // only the static baseline
   });
 
   test('does not invoke host-hook factories when HITL is disabled', () => {
