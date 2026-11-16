@@ -55,7 +55,7 @@ function initializeVendosBriefing(appConfig) {
         !["completed", "failed", "aborted", "cancelled"].includes(job.status)
       );
     },
-    log: (event) => logger.warn("[VENDOS briefing]", event),
+    log: (event) => logger.warn(`[VENDOS briefing] ${event}`),
   });
   service.start();
 }
