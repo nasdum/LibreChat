@@ -33,9 +33,11 @@ const {
 } = require('~/server/services/MCPRequestContext');
 const { logViolation } = require('~/cache');
 const { saveMessage, getMessages, getConvo } = require('~/models');
+const { handleVendosMessage } = require('~/server/services/VendosBriefing');
 const {
   GENERATION_PROTOCOL_HEADER,
   GENERATION_PROTOCOL_V2,
+  getRequestedGenerationProtocol,
   negotiateNewGenerationProtocol,
   negotiateExistingGenerationProtocol,
 } = require('./protocol');
@@ -319,6 +321,19 @@ const ResumableAgentController = async (req, res, next, initializeClient, addTit
 
   const userId = req.user.id;
   const tenantId = req.user.tenantId;
+  const vendosProtocolVersion = getRequestedGenerationProtocol(req);
+  const vendosResult = await handleVendosMessage(req, vendosProtocolVersion);
+  if (vendosResult.handled) {
+    startupTelemetry?.end(vendosResult.error ? 'rejected' : 'completed');
+    return sendGenerationJson(
+      res,
+      vendosResult.statusCode ?? 200,
+      vendosResult.error
+        ? { code: 'VENDOS_APPROVAL_REJECTED', error: vendosResult.error }
+        : { conversationId: reqConversationId, status: 'settled' },
+      vendosProtocolVersion,
+    );
+  }
   const rawClientRequestId = req.body?.clientRequestId;
   if (
     rawClientRequestId != null &&
