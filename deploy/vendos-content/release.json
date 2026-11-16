@@ -2,9 +2,9 @@
   "schema": 1,
   "purpose": "Explicitly authorized technical content-consent repair; no marketing execution",
   "notebook_agents_paused": true,
-  "notebook_pause_checked_at_utc": "2026-11-16T16:46:25.981523+00:00",
+  "notebook_pause_checked_at_utc": "2026-11-16T16:49:05.180556+00:00",
   "file_sha256": {
-    "deploy.py": "d24547377e41ffd3c7c7f67d826c4c059fc892120bbd9842cd1aaf5fdc5bdbf7",
+    "deploy.py": "5e72117a28c077fc75db4bf701fab22126448b104718d7d08f86b2d4d91faa9d",
     "launch.py": "8aeb8c60588ddebd41249403e39af37bee283ee070b79e1d6ea8a4a993cee559",
     "manifest.json": "e4a723ff09cae1eb4e0a51e3ccf161ec7d21a63a87fe0d769977bf80aaf7419c",
     "payload/VendosBriefing.js": "ea1c4ae84323a993b33f419a872696aab9a17e590e038694238808d9637914b2",

@@ -507,7 +507,8 @@ def deploy(args: argparse.Namespace) -> dict:
     check_gate(read_private_json(gate_path), before, manifest_hash, dt.datetime.now(dt.timezone.utc), args.policy)
     first_metrics = observe_metrics(commands, args.policy)
     snapshot_tag = "librechat-vendos-snapshot:" + stamp.lower()
-    snapshot_id = commands.run(["docker", "commit", "--pause=true", before["Id"], snapshot_tag], 120).strip()
+    commands.run(["docker", "commit", "--pause=true", before["Id"], snapshot_tag], 120)
+    snapshot_id = json.loads(commands.run(["docker", "image", "inspect", snapshot_tag]))[0]["Id"]
     demand(re.fullmatch(r"sha256:[0-9a-f]{64}", snapshot_id) is not None, "INVALID_SNAPSHOT")
     (backup / "snapshot-id").write_text(snapshot_id, encoding="ascii")
     build = backup / "build"
