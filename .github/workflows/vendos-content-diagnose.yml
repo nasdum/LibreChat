@@ -79,7 +79,11 @@ jobs:
                           compare(a.get(k),b.get(k),(path+'.' if path else '')+k)
                   else:differences.append(path)
               compare(left,right)
-              print(json.dumps({'runtime_difference_paths':differences,'original_running':commands.inspect(before['Id'])['State']['Running'],'candidate_started':False}))
+              old_oom=before['HostConfig'].get('OomKillDisable')
+              new_oom=after['HostConfig'].get('OomKillDisable')
+              assert old_oom is None or type(old_oom) is bool
+              assert new_oom is None or type(new_oom) is bool
+              print(json.dumps({'runtime_difference_paths':differences,'original_running':commands.inspect(before['Id'])['State']['Running'],'candidate_started':False,'original_oom_kill_disable':old_oom,'candidate_oom_kill_disable':new_oom}))
           finally:
               deploy.remove_owned_candidate(commands,candidate)
           PY
