@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "purpose": "Explicitly authorized technical content-consent repair; no marketing execution",
+  "notebook_agents_paused": true,
+  "notebook_pause_checked_at_utc": "2026-11-16T16:46:25.981523+00:00",
+  "file_sha256": {
+    "deploy.py": "d24547377e41ffd3c7c7f67d826c4c059fc892120bbd9842cd1aaf5fdc5bdbf7",
+    "launch.py": "8aeb8c60588ddebd41249403e39af37bee283ee070b79e1d6ea8a4a993cee559",
+    "manifest.json": "e4a723ff09cae1eb4e0a51e3ccf161ec7d21a63a87fe0d769977bf80aaf7419c",
+    "payload/VendosBriefing.js": "ea1c4ae84323a993b33f419a872696aab9a17e590e038694238808d9637914b2",
+    "payload/request.js": "b43d80081aa53b056ca84ef68651db963041d97aaa42a961b853689b7c066d74",
+    "payload/vendos.cjs": "f5b240afe88c7eaf0e02d1ef2fb0d592ebf73fe05f1e25c42de445275b43cf28",
+    "payload/vendos.cjs.map": "8bfe8ba8aa9650f443309edb175210457b1f6dcbc4c65e831249b848334c3ff7"
+  }
+}

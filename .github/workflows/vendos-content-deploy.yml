@@ -1,0 +1,50 @@
+name: Deploy reviewed VENDOS content approval overlay
+
+on:
+  push:
+    branches: [codex/vendos-content-approval-20261116]
+    paths: [.github/workflows/vendos-content-deploy.yml]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-hetzner
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.repository == 'nasdum/LibreChat' && github.ref == 'refs/heads/codex/vendos-content-approval-20261116'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+      - name: Apply only the reviewed overlay with runtime parity and rollback
+        shell: bash
+        env:
+          DEPLOY_KEY: ${{ secrets.HETZNER_SSH_KEY }}
+          DEPLOY_HOST: ${{ secrets.HETZNER_HOST }}
+          DEPLOY_PORT: ${{ secrets.HETZNER_SSH_PORT || '22' }}
+          DEPLOY_USER: ${{ secrets.HETZNER_USER || 'root' }}
+        run: |
+          set -euo pipefail
+          set +x
+          [[ "$DEPLOY_HOST" == '167.233.250.66' ]] || exit 1
+          [[ "$DEPLOY_PORT" == '22' && "$DEPLOY_USER" == 'root' ]] || exit 1
+          [[ -n "$DEPLOY_KEY" && "$GITHUB_SHA" =~ ^[0-9a-f]{40}$ ]] || exit 1
+          umask 077
+          task_dir=$(mktemp -d "$RUNNER_TEMP/vendos-content-deploy.XXXXXX")
+          trap 'rm -f -- "$task_dir/key" "$task_dir/known_hosts" "$task_dir/ssh-error"; rmdir -- "$task_dir"' EXIT
+          printf '%s\n' "$DEPLOY_KEY" | sed 's/\r$//' > "$task_dir/key"
+          unset DEPLOY_KEY
+          printf '%s\n' '167.233.250.66 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIH++s2lmE6yJeJsEm6w+iuMpa+vgbNEH6pzCfCGZbMct' > "$task_dir/known_hosts"
+          ssh_args=(-i "$task_dir/key" -p 22 -o BatchMode=yes -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=6 -o IdentitiesOnly=yes -o ForwardAgent=no -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$task_dir/known_hosts" -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 -o LogLevel=ERROR)
+          remote_dir="/root/vendos-content-stage-$GITHUB_SHA"
+          tar -cf - -C deploy/vendos-content deploy.py launch.py manifest.json release.json payload/VendosBriefing.js payload/request.js payload/vendos.cjs payload/vendos.cjs.map |
+            ssh "${ssh_args[@]}" "root@$DEPLOY_HOST" "umask 077; mkdir '$remote_dir' && tar --no-same-owner --no-same-permissions -xf - -C '$remote_dir'" 2>"$task_dir/ssh-error"
+          if ! ssh "${ssh_args[@]}" "root@$DEPLOY_HOST" "python3 '$remote_dir/launch.py'" 2>"$task_dir/ssh-error"; then
+            echo '::error::Reviewed deployment stopped; inspect allowlisted status and private server backup'
+            exit 1
+          fi

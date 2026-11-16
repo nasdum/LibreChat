@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "baseline_sha256": {
+    "VendosBriefing.js": "6ad1a714bcb8ec6c200e751d663f1929d4fdd86708aa7f01e368a01c34c04af3",
+    "request.js": "46cef71f692e9dff23ce80474041a007731e122273c39919f3f43d054390ade6",
+    "vendos.cjs": "ac7f819e7de8b7c88c0b156ada4402b29df9d6f0cab18b080ec39f7a00ba242f"
+  },
+  "payload_sha256": {
+    "VendosBriefing.js": "ea1c4ae84323a993b33f419a872696aab9a17e590e038694238808d9637914b2",
+    "request.js": "b43d80081aa53b056ca84ef68651db963041d97aaa42a961b853689b7c066d74",
+    "vendos.cjs": "f5b240afe88c7eaf0e02d1ef2fb0d592ebf73fe05f1e25c42de445275b43cf28",
+    "vendos.cjs.map": "8bfe8ba8aa9650f443309edb175210457b1f6dcbc4c65e831249b848334c3ff7"
+  }
+}
