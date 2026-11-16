@@ -1,0 +1,92 @@
+name: VENDOS content approval read-only preflight
+
+on:
+  push:
+    branches: [codex/vendos-content-approval-20261116]
+    paths: [.github/workflows/vendos-content-preflight.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vendos-content-readonly-preflight
+  cancel-in-progress: false
+
+jobs:
+  fingerprints:
+    if: github.repository == 'nasdum/LibreChat' && github.ref == 'refs/heads/codex/vendos-content-approval-20261116'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Compare fixed public source fingerprints without deploying
+        shell: bash
+        env:
+          DEPLOY_KEY: ${{ secrets.HETZNER_SSH_KEY }}
+          DEPLOY_HOST: ${{ secrets.HETZNER_HOST }}
+          DEPLOY_PORT: ${{ secrets.HETZNER_SSH_PORT || '22' }}
+          DEPLOY_USER: ${{ secrets.HETZNER_USER || 'root' }}
+        run: |
+          set -euo pipefail
+          set +x
+          [[ "$DEPLOY_HOST" == '167.233.250.66' ]] || { echo '::error::Unexpected or missing deployment host'; exit 1; }
+          [[ "$DEPLOY_PORT" == '22' && "$DEPLOY_USER" == 'root' ]] || { echo '::error::Unexpected deployment principal'; exit 1; }
+          [[ -n "$DEPLOY_KEY" ]] || { echo '::error::Existing deployment credential is unavailable'; exit 1; }
+          umask 077
+          task_dir=$(mktemp -d "$RUNNER_TEMP/vendos-content-preflight.XXXXXX")
+          trap 'rm -f -- "$task_dir/key" "$task_dir/known_hosts" "$task_dir/ssh-error"; rmdir -- "$task_dir"' EXIT
+          printf '%s\n' "$DEPLOY_KEY" | sed 's/\r$//' > "$task_dir/key"
+          unset DEPLOY_KEY
+          printf '%s\n' '167.233.250.66 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIH++s2lmE6yJeJsEm6w+iuMpa+vgbNEH6pzCfCGZbMct' > "$task_dir/known_hosts"
+          if ! ssh -i "$task_dir/key" -p 22 -o BatchMode=yes -o ConnectTimeout=15 \
+            -o IdentitiesOnly=yes -o ForwardAgent=no -o StrictHostKeyChecking=yes \
+            -o "UserKnownHostsFile=$task_dir/known_hosts" -o GlobalKnownHostsFile=/dev/null \
+            -o HostKeyAlgorithms=ssh-ed25519 -o LogLevel=ERROR \
+            "root@$DEPLOY_HOST" 'python3 -' 2>"$task_dir/ssh-error" <<'PY'
+          import hashlib, json, re, subprocess
+          from pathlib import Path
+          root = Path('/opt/librechat')
+          if root.resolve() != root or not root.is_dir():
+              raise SystemExit(2)
+          paths = [
+              'AGENTS.md', 'CLAUDE.md', 'packages/api/VENDOS.md',
+              'packages/api/src/vendos.ts', 'packages/api/src/vendos.integration.node.ts',
+              'api/server/services/VendosBriefing.js', 'api/server/controllers/agents/request.js',
+              'api/server/index.js', 'packages/api/package.json', 'packages/api/tsdown.config.mjs',
+          ]
+          fingerprints = {}
+          for relative in paths:
+              path = root / relative
+              if path.resolve() == path and path.is_file() and path.stat().st_size < 2000000:
+                  fingerprints[relative] = hashlib.sha256(path.read_bytes()).hexdigest()
+              else:
+                  fingerprints[relative] = 'unavailable'
+          head = subprocess.run(['git', '-C', str(root), 'rev-parse', 'HEAD'], capture_output=True, text=True, timeout=10)
+          revision = head.stdout.strip()
+          print(json.dumps({'source_sha256': fingerprints, 'git_revision': revision if re.fullmatch(r'[0-9a-f]{40}', revision) else 'unavailable'}))
+          runtime_script = r"""
+          const fs = require('node:fs'), crypto = require('node:crypto');
+          const files = ['/app/api/server/services/VendosBriefing.js', '/app/api/server/controllers/agents/request.js', '/app/packages/api/dist/vendos.cjs'];
+          const out = {};
+          for (const [i, path] of files.entries()) {
+            try {
+              const real = fs.realpathSync(path);
+              if (real !== path || !real.startsWith('/app/') || !/\.[cm]?js$/.test(real) || !fs.statSync(real).isFile() || fs.statSync(real).size >= 4000000) throw new Error();
+              out[i === 2 ? 'vendos_compiled' : String(i)] = crypto.createHash('sha256').update(fs.readFileSync(real)).digest('hex');
+            } catch { out[String(i)] = 'unavailable'; }
+          }
+          process.stdout.write(JSON.stringify(out));
+          """
+          runtime = subprocess.run(['docker', 'exec', 'LibreChat-API', 'node', '-e', runtime_script], capture_output=True, text=True, timeout=20)
+          try:
+              values = json.loads(runtime.stdout)
+              if runtime.returncode or not isinstance(values, dict) or any(k not in ('0','1','2','vendos_compiled') or not isinstance(v,str) or not re.fullmatch(r'[0-9a-f]{64}|unavailable',v) for k,v in values.items()):
+                  raise ValueError()
+              print(json.dumps({'runtime_sha256': values}))
+          except (ValueError, TypeError):
+              print(json.dumps({'runtime_sha256': 'unavailable'}))
+          PY
+          then
+            echo '::error::Read-only preflight failed; no server files were changed'
+            exit 1
+          fi
