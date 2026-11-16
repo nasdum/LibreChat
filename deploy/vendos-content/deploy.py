@@ -99,6 +99,10 @@ def mount_collision(mounts: list[dict], paths: list[str]) -> bool:
 
 
 def canonical_inspect(record: dict) -> dict:
+    host_config = dict(record['HostConfig'])
+    # Moby defaults an omitted OomKillDisable pointer to false on create.
+    if host_config.get('OomKillDisable') is None:
+        host_config['OomKillDisable'] = False
     config = dict(record["Config"])
     config.pop("Image", None)
     config["Env"] = env_map(config.get("Env") or [])
@@ -125,7 +129,7 @@ def canonical_inspect(record: dict) -> dict:
     return {
         "Name": record["Name"],
         "Config": config,
-        "HostConfig": record["HostConfig"],
+        "HostConfig": host_config,
         "Mounts": sorted(record["Mounts"], key=lambda m: m["Destination"]),
         "Networks": networks,
     }

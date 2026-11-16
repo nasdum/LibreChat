@@ -1,5 +1,6 @@
 name: Deploy reviewed VENDOS content approval overlay
 # Snapshot identity is verified through Docker image metadata.
+# Normalize only Moby's equivalent OomKillDisable null/false default.
 
 on:
   push:
