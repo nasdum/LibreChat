@@ -61,6 +61,7 @@ const { startExpiredFileSweep } = require('./services/Files/process');
 const { checkMigrations } = require('./services/start/migration');
 const optionalJwtAuth = require('./middleware/optionalJwtAuth');
 const initializeMCPs = require('./services/initializeMCPs');
+const { initializeVendosBriefing } = require('./services/VendosBriefing');
 const configureSocialLogins = require('./socialLogins');
 const createSpaFallback = require('./utils/fallback');
 const { getAppConfig } = require('./services/Config');
@@ -393,6 +394,7 @@ const startServer = async () => {
         memoryDiagnostics.start();
       }
       serverReady = true;
+      initializeVendosBriefing(appConfig);
       logger.info('Server readiness checks passing.');
     } catch (initErr) {
       serverReady = false;
