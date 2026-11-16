@@ -1,0 +1,89 @@
+name: VENDOS stopped candidate metadata probe
+
+on:
+  push:
+    branches: [codex/vendos-content-approval-20261116]
+    paths: [.github/workflows/vendos-content-diagnose.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vendos-content-readonly-preflight
+  cancel-in-progress: false
+
+jobs:
+  fingerprints:
+    if: github.repository == 'nasdum/LibreChat' && github.ref == 'refs/heads/codex/vendos-content-approval-20261116'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Compare stopped candidate metadata without restarting live API
+        shell: bash
+        env:
+          DEPLOY_KEY: ${{ secrets.HETZNER_SSH_KEY }}
+          DEPLOY_HOST: ${{ secrets.HETZNER_HOST }}
+          DEPLOY_PORT: ${{ secrets.HETZNER_SSH_PORT || '22' }}
+          DEPLOY_USER: ${{ secrets.HETZNER_USER || 'root' }}
+        run: |
+          set -euo pipefail
+          set +x
+          [[ "$DEPLOY_HOST" == '167.233.250.66' ]] || { echo '::error::Unexpected or missing deployment host'; exit 1; }
+          [[ "$DEPLOY_PORT" == '22' && "$DEPLOY_USER" == 'root' ]] || { echo '::error::Unexpected deployment principal'; exit 1; }
+          [[ -n "$DEPLOY_KEY" ]] || { echo '::error::Existing deployment credential is unavailable'; exit 1; }
+          umask 077
+          task_dir=$(mktemp -d "$RUNNER_TEMP/vendos-content-preflight.XXXXXX")
+          trap 'rm -f -- "$task_dir/key" "$task_dir/known_hosts" "$task_dir/ssh-error"; rmdir -- "$task_dir"' EXIT
+          printf '%s\n' "$DEPLOY_KEY" | sed 's/\r$//' > "$task_dir/key"
+          unset DEPLOY_KEY
+          printf '%s\n' '167.233.250.66 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIH++s2lmE6yJeJsEm6w+iuMpa+vgbNEH6pzCfCGZbMct' > "$task_dir/known_hosts"
+          if ! ssh -i "$task_dir/key" -p 22 -o BatchMode=yes -o ConnectTimeout=15 \
+            -o IdentitiesOnly=yes -o ForwardAgent=no -o StrictHostKeyChecking=yes \
+            -o "UserKnownHostsFile=$task_dir/known_hosts" -o GlobalKnownHostsFile=/dev/null \
+            -o HostKeyAlgorithms=ssh-ed25519 -o LogLevel=ERROR \
+            "root@$DEPLOY_HOST" 'python3 -' 2>"$task_dir/ssh-error" <<'PY'
+          """Probe stopped-container metadata; never stop or restart the live API."""
+          import hashlib,json,sys,time
+          from pathlib import Path
+          
+          STAGE=Path('/root/vendos-content-stage-6dbb24e98633d18a48cd2ca347d59f4799a9502d')
+          release=json.loads((STAGE/'release.json').read_text())
+          assert hashlib.sha256((STAGE/'deploy.py').read_bytes()).hexdigest()==release['file_sha256']['deploy.py']
+          sys.path.insert(0,str(STAGE))
+          import deploy
+          import os
+          os.umask(0o077)
+          backup=sorted((p for p in deploy.BACKUP_ROOT.iterdir() if p.is_dir() and (p/'candidate-id').exists()),key=lambda p:p.name)[-1]
+          saved=json.loads((backup/'deployment.json').read_text())
+          commands=deploy.Commands(backup)
+          before=commands.inspect()
+          assert before['State']['Running'] and before['Name']=='/LibreChat-API'
+          name='LibreChat-API-vendos-diagnostic-'+str(int(time.time()))
+          candidate=deploy.create_stopped(commands,before,saved['overlay_id'],name)
+          try:
+              after=commands.inspect(candidate)
+              assert not after['State']['Running']
+              (backup/'candidate-diagnostic-private.json').write_text(json.dumps(after),encoding='utf-8')
+              left,right=deploy.canonical_inspect(before),deploy.canonical_inspect(after)
+              left['Name']='/'+name
+              if before['Config'].get('Hostname')==before['Id'][:12] and after['Config'].get('Hostname')==before['Config']['Hostname']:
+                  right['Config']['Hostname']='<docker-default>'
+              differences=[]
+              def compare(a,b,path=''):
+                  if a==b:return
+                  if path in ('Config.Env','Config.Labels','Mounts','Networks'):
+                      differences.append(path);return
+                  if isinstance(a,dict) and isinstance(b,dict):
+                      for k in sorted(set(a)|set(b)):
+                          compare(a.get(k),b.get(k),(path+'.' if path else '')+k)
+                  else:differences.append(path)
+              compare(left,right)
+              print(json.dumps({'runtime_difference_paths':differences,'original_running':commands.inspect(before['Id'])['State']['Running'],'candidate_started':False}))
+          finally:
+              deploy.remove_owned_candidate(commands,candidate)
+          PY
+          then
+            echo '::error::Stopped metadata probe failed; live API was not restarted'
+            exit 1
+          fi
