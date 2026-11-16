@@ -1,7 +1,11 @@
 const mongoose = require('mongoose');
 const { logger } = require('@librechat/data-schemas');
 const { GenerationJobManager } = require('@librechat/api');
-const { createVendosBriefing } = require('@librechat/api/vendos');
+const {
+  createVendosBriefing,
+  isVendosDecisionText,
+  isVendosGenerationBusy,
+} = require('@librechat/api/vendos');
 const { getUserPluginAuthValue } = require('./PluginService');
 const VENDOS_OWNER = process.env.VENDOS_BRIEFING_OWNER_ID;
 const VENDOS_THREAD = process.env.VENDOS_BRIEFING_THREAD_ID;
@@ -45,7 +49,7 @@ function initializeVendosBriefing(appConfig) {
         ),
     isBusy: async () => {
       const job = await GenerationJobManager.getJob(VENDOS_THREAD);
-      return !!job && !['completed', 'failed', 'aborted', 'cancelled'].includes(job.status);
+      return isVendosGenerationBusy(job);
     },
     log: (event) => logger.warn(`[VENDOS briefing] ${event}`),
   });
@@ -58,7 +62,7 @@ async function handleVendosMessage(req, protocolVersion) {
       const matches =
         req.user?.id === VENDOS_OWNER &&
         req.body?.conversationId === VENDOS_THREAD &&
-        /^(schvaluji|souhlasím|souhlasim)\b/i.test(req.body?.text?.trim() ?? '');
+        isVendosDecisionText(req.body?.text);
       return matches
         ? {
             handled: true,

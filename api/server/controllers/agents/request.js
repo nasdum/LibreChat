@@ -329,7 +329,13 @@ const ResumableAgentController = async (req, res, next, initializeClient, addTit
       res,
       vendosResult.statusCode ?? 200,
       vendosResult.error
-        ? { code: 'VENDOS_APPROVAL_REJECTED', error: vendosResult.error }
+        ? {
+            code:
+              vendosResult.decisionType === 'draft'
+                ? 'VENDOS_DRAFT_APPROVAL_REJECTED'
+                : 'VENDOS_APPROVAL_REJECTED',
+            error: vendosResult.error,
+          }
         : { conversationId: reqConversationId, status: 'settled' },
       vendosProtocolVersion,
     );

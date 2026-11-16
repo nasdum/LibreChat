@@ -1,0 +1,99 @@
+{
+  "synthetic_key": "synthetic-test-key-not-a-real-credential-20261116",
+  "at_ms": 1794830400000,
+  "raw_draft": "{\"assets\":[{\"execution_action\":null,\"key\":\"strategy\",\"text\":\"Lidský obsah bez přehánění.\",\"title\":\"Strategie\"},{\"execution_action\":null,\"key\":\"email\",\"text\":\"Návrh e-mailu, bez odeslání.\",\"title\":\"E-mail\"}],\"version\":4}",
+  "raw_review": "{\"assessments\":[{\"key\":\"strategy\",\"verdict\":\"recommended\"},{\"key\":\"email\",\"verdict\":\"recommended\"}]}",
+  "policy": {
+    "project": "vendos-cz",
+    "owner": "librechat-111111111111111111111111",
+    "thread_id": "11111111-1111-4111-8111-111111111111"
+  },
+  "bundle": {
+    "id": "brief-0123456789abcdef0123",
+    "project": "vendos-cz",
+    "thread_id": "11111111-1111-4111-8111-111111111111",
+    "owner": "librechat-111111111111111111111111",
+    "payload": "{\"decision_type\":\"draft\",\"expires_at\":\"2026-11-17T12:00:00+00:00\",\"id\":\"brief-0123456789abcdef0123\",\"introduction\":\"Nejde o provedení.\",\"items\":[{\"approval_summary\":null,\"decision_type\":\"draft\",\"draft_sha256\":\"32b03a1326ac1493eb1f7619fde8b41f70b2db367fc307ed6a45986e96182e4b\",\"executable\":false,\"item_key\":\"strategy\",\"job_id\":\"vnd-0123456789abcdef\",\"number\":1,\"plan_hash\":null,\"plan_id\":null,\"review_sha256\":\"1920e2afd1bcb61c8167dc1a9342fda69432cf492463843a34c5c6e7a046b78d\",\"revision\":4,\"title\":\"Strategie\"},{\"approval_summary\":null,\"decision_type\":\"draft\",\"draft_sha256\":\"32b03a1326ac1493eb1f7619fde8b41f70b2db367fc307ed6a45986e96182e4b\",\"executable\":false,\"item_key\":\"email\",\"job_id\":\"vnd-0123456789abcdef\",\"number\":2,\"plan_hash\":null,\"plan_id\":null,\"review_sha256\":\"1920e2afd1bcb61c8167dc1a9342fda69432cf492463843a34c5c6e7a046b78d\",\"revision\":4,\"title\":\"E-mail\"}],\"owner\":\"librechat-111111111111111111111111\",\"project\":\"vendos-cz\",\"slot\":\"test-only\",\"thread_id\":\"11111111-1111-4111-8111-111111111111\",\"title\":\"Syntetický test obsahového souhlasu\"}",
+    "bundle_hash": "bd6520252e37d809fb9e5bbb14200a54fda72eb2c35cf0049c49bc683fd025b1",
+    "source_message_id": "00000000-0000-4000-8000-000000000001",
+    "acknowledged_at_ms": 1794830340000,
+    "expires_at": "2026-11-17T12:00:00+00:00"
+  },
+  "latest_briefing": {
+    "bundle_id": "brief-0123456789abcdef0123",
+    "bundle_hash": "bd6520252e37d809fb9e5bbb14200a54fda72eb2c35cf0049c49bc683fd025b1",
+    "source_message_id": "00000000-0000-4000-8000-000000000001"
+  },
+  "message": {
+    "message_id": "00000000-0000-4000-8000-000000000003",
+    "thread_id": "11111111-1111-4111-8111-111111111111",
+    "actor": "librechat-111111111111111111111111",
+    "is_created_by_user": true,
+    "message_text": "  Souhlasím s obsahem strategie v4, body 2 a 1.  ",
+    "parent_message_id": "00000000-0000-4000-8000-000000000002",
+    "created_at_ms": 1794830399000
+  },
+  "ancestors": [
+    {
+      "message_id": "00000000-0000-4000-8000-000000000002",
+      "thread_id": "11111111-1111-4111-8111-111111111111",
+      "parent_message_id": "00000000-0000-4000-8000-000000000001",
+      "is_created_by_user": false
+    },
+    {
+      "message_id": "00000000-0000-4000-8000-000000000001",
+      "thread_id": "11111111-1111-4111-8111-111111111111",
+      "parent_message_id": null,
+      "is_created_by_user": false
+    }
+  ],
+  "expected_receipt_payload": {
+    "v": 2,
+    "kind": "vendos_draft_decision",
+    "actor": "librechat-111111111111111111111111",
+    "thread_id": "11111111-1111-4111-8111-111111111111",
+    "bundle_id": "brief-0123456789abcdef0123",
+    "bundle_hash": "bd6520252e37d809fb9e5bbb14200a54fda72eb2c35cf0049c49bc683fd025b1",
+    "message_id": "00000000-0000-4000-8000-000000000003",
+    "source_message_id": "00000000-0000-4000-8000-000000000001",
+    "selected_points": [1, 2],
+    "message_sha256": "b6d9db1feb24715403b9f0f7bd83d0c91e8f29b8f56da4248a7ae0f1fdb27e19",
+    "nonce": "draft-message:00000000-0000-4000-8000-000000000003",
+    "issued_at": 1794830400000
+  },
+  "expected_receipt_json": "{\"v\":2,\"kind\":\"vendos_draft_decision\",\"actor\":\"librechat-111111111111111111111111\",\"thread_id\":\"11111111-1111-4111-8111-111111111111\",\"bundle_id\":\"brief-0123456789abcdef0123\",\"bundle_hash\":\"bd6520252e37d809fb9e5bbb14200a54fda72eb2c35cf0049c49bc683fd025b1\",\"message_id\":\"00000000-0000-4000-8000-000000000003\",\"source_message_id\":\"00000000-0000-4000-8000-000000000001\",\"selected_points\":[1,2],\"message_sha256\":\"b6d9db1feb24715403b9f0f7bd83d0c91e8f29b8f56da4248a7ae0f1fdb27e19\",\"nonce\":\"draft-message:00000000-0000-4000-8000-000000000003\",\"issued_at\":1794830400000}",
+  "expected_receipt": "eyJ2IjoyLCJraW5kIjoidmVuZG9zX2RyYWZ0X2RlY2lzaW9uIiwiYWN0b3IiOiJsaWJyZWNoYXQtMTExMTExMTExMTExMTExMTExMTExMTExIiwidGhyZWFkX2lkIjoiMTExMTExMTEtMTExMS00MTExLTgxMTEtMTExMTExMTExMTExIiwiYnVuZGxlX2lkIjoiYnJpZWYtMDEyMzQ1Njc4OWFiY2RlZjAxMjMiLCJidW5kbGVfaGFzaCI6ImJkNjUyMDI1MmUzN2Q4MDlmYjllNWJiYjE0MjAwYTU0ZmRhNzJlYjJjMzVjZjAwNDljNDliYzY4M2ZkMDI1YjEiLCJtZXNzYWdlX2lkIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAzIiwic291cmNlX21lc3NhZ2VfaWQiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJzZWxlY3RlZF9wb2ludHMiOlsxLDJdLCJtZXNzYWdlX3NoYTI1NiI6ImI2ZDlkYjFmZWIyNDcxNTQwM2I5ZjBmN2JkODNkMGM5MWU4ZjI5YjhmNTZkYTQyNDhhN2FlMGYxZmRiMjdlMTkiLCJub25jZSI6ImRyYWZ0LW1lc3NhZ2U6MDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAzIiwiaXNzdWVkX2F0IjoxNzk0ODMwNDAwMDAwfQ.0933c544cf79a10d9d7c960840b0ba7a0a0dae20be62668f3f919214f2c4162d",
+  "parser_accept": [
+    {
+      "text": "Souhlasím se všemi body",
+      "all": true
+    },
+    {
+      "text": " SOUHLASÍM SE VŠEMI BODY. ",
+      "all": true
+    },
+    {
+      "text": "Souhlasím s obsahem strategie v4, body 2 a 1.",
+      "revision": 4,
+      "points": [1, 2]
+    },
+    {
+      "text": "Souhlasím s obsahem strategie v4, bod 1",
+      "revision": 4,
+      "points": [1]
+    }
+  ],
+  "parser_reject": [
+    "Schvaluji body 1 a 2, proveď je",
+    "Souhlasím se všemi body, proveď je",
+    "Souhlasím s obsahem strategie v4, body 1 a 1",
+    "Souhlasím s obsahem strategie v04, bod 1",
+    "Souhlasím s obsahem strategie v4, bod 51",
+    "Souhlasím se všemi body\n",
+    "\tSouhlasím se všemi body",
+    " Souhlasím se všemi body",
+    "Souhlasím se všemi body; publikuj",
+    "Souhlasím se všemi body",
+    "Souhlasím s obsahem strategie v4, body 1,2"
+  ]
+}

@@ -32,7 +32,7 @@
     }
   },
   "scripts": {
-    "test:vendos": "tsc src/vendos.ts src/vendos.integration.node.ts --target es2022 --module commonjs --strict --esModuleInterop --skipLibCheck --types node --outDir ../../.cache/vendos-test && node --test ../../.cache/vendos-test/vendos.integration.node.js",
+    "test:vendos": "tsc src/vendos.ts src/vendos.integration.node.ts --target es2022 --module commonjs --strict --esModuleInterop --skipLibCheck --resolveJsonModule --types node --outDir ../../.cache/vendos-test && node --test ../../.cache/vendos-test/vendos.integration.node.js",
     "clean": "rimraf dist",
     "build": "npm run clean && tsdown",
     "build:dev": "npm run clean && tsdown",
