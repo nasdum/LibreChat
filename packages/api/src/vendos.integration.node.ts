@@ -16,7 +16,13 @@ let calls: { name: string; args: object; receipt: object | null }[] = [];
 let failApproval = false;
 let failAck = false;
 const key = 'local-test-key-with-no-production-permissions';
-const preset = { endpoint: 'VENDOS pilot', model: 'claude-sonnet-5-5' };
+const preset = {
+  endpoint: 'VENDOS pilot',
+  model: 'claude-sonnet-5-5',
+  agent_id: undefined,
+  endpointType: undefined,
+  promptPrefix: undefined,
+};
 let service: ReturnType<typeof createVendosBriefing>;
 
 function delivery(): Delivery {
@@ -157,6 +163,10 @@ test('delivers once, persists owner-scoped conversation, and signs ack only afte
     1,
   );
   assert.equal(calls.filter((call) => call.name === 'briefing_ack').length, 2);
+  const saved = await db.collection('conversations').findOne({ conversationId: VENDOS_THREAD });
+  for (const optional of ['agent_id', 'endpointType', 'promptPrefix']) {
+    assert.equal(Object.hasOwn(saved!, optional), false, `${optional} must not become null`);
+  }
 });
 
 test('a delayed ack reuses the saved message and blocks approvals until acknowledged', async () => {

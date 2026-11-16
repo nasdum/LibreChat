@@ -267,7 +267,12 @@ function validDelivery(delivery: Delivery): boolean {
 
 /** Only the authenticated request controller may call handle; no MCP/model hook exposes it. */
 export function createVendosBriefing(options: Options) {
-  const { db, preset } = options;
+  const { db } = options;
+  // The MongoDB driver otherwise serializes undefined optional preset fields as
+  // null, which the browser's conversation schema rejects before sending a message.
+  const preset = Object.fromEntries(
+    Object.entries(options.preset).filter(([, value]) => value != null),
+  ) as unknown as Preset;
   const { ownerId: VENDOS_OWNER, threadId: VENDOS_THREAD } = options;
   if (!/^[a-f0-9]{24}$/.test(VENDOS_OWNER) || !UUID.test(VENDOS_THREAD) || !options.ownerEmail) {
     throw new Error('vendos_invalid_configuration');
