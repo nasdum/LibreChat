@@ -75,16 +75,91 @@ jobs:
               out[i === 2 ? 'vendos_compiled' : String(i)] = crypto.createHash('sha256').update(fs.readFileSync(real)).digest('hex');
             } catch { out[String(i)] = 'unavailable'; }
           }
+          try {
+            const path = '/app/packages/api/dist/vendos.cjs.map';
+            if (fs.realpathSync(path) !== path || !fs.statSync(path).isFile() || fs.statSync(path).size >= 4000000) throw new Error();
+            const map = JSON.parse(fs.readFileSync(path, 'utf8'));
+            const source = map.sources.indexOf('../src/vendos.ts');
+            if (source < 0 || typeof map.sourcesContent[source] !== 'string') throw new Error();
+            out.source_vendos = crypto.createHash('sha256').update(map.sourcesContent[source], 'utf8').digest('hex');
+          } catch { out.source_vendos = 'unavailable'; }
           process.stdout.write(JSON.stringify(out));
           """
           runtime = subprocess.run(['docker', 'exec', 'LibreChat-API', 'node', '-e', runtime_script], capture_output=True, text=True, timeout=20)
           try:
               values = json.loads(runtime.stdout)
-              if runtime.returncode or not isinstance(values, dict) or any(k not in ('0','1','2','vendos_compiled') or not isinstance(v,str) or not re.fullmatch(r'[0-9a-f]{64}|unavailable',v) for k,v in values.items()):
+              if runtime.returncode or not isinstance(values, dict) or any(k not in ('0','1','2','vendos_compiled','source_vendos') or not isinstance(v,str) or not re.fullmatch(r'[0-9a-f]{64}|unavailable',v) for k,v in values.items()):
                   raise ValueError()
               print(json.dumps({'runtime_sha256': values}))
           except (ValueError, TypeError):
               print(json.dumps({'runtime_sha256': 'unavailable'}))
+          def inspect(template):
+              result = subprocess.run(['docker', 'inspect', '--format', template, 'LibreChat-API'], capture_output=True, text=True, timeout=10)
+              if result.returncode:
+                  raise ValueError()
+              return result.stdout.strip()
+          try:
+              image_id = inspect('{{.Image}}')
+              project = inspect('{{index .Config.Labels "com.docker.compose.project"}}')
+              directory = inspect('{{index .Config.Labels "com.docker.compose.project.working_dir"}}')
+              configs = inspect('{{index .Config.Labels "com.docker.compose.project.config_files"}}').split(',')
+              approved = Path('/opt/librechat/deploy/hetzner')
+              configs_valid = bool(configs) and all(Path(p).is_absolute() and Path(p).resolve() == Path(p) and Path(p).is_relative_to(approved) and Path(p).is_file() for p in configs)
+              mounts = json.loads(inspect('{{json .Mounts}}'))
+              targets = ['/app/api/server/services/VendosBriefing.js', '/app/api/server/controllers/agents/request.js', '/app/packages/api/dist/vendos.cjs']
+              collision = any(t == m['Destination'].rstrip('/') or t.startswith(m['Destination'].rstrip('/') + '/') for m in mounts for t in targets)
+              differences = subprocess.run(['docker', 'diff', 'LibreChat-API'], capture_output=True, text=True, timeout=15)
+              print(json.dumps({'runtime_metadata': {'image_id': image_id if re.fullmatch(r'sha256:[0-9a-f]{64}', image_id) else 'unavailable', 'running': inspect('{{.State.Running}}') == 'true', 'expected_compose_project': project == 'librechat', 'expected_compose_directory': directory == str(approved), 'compose_files_valid': configs_valid, 'compose_file_count': len(configs), 'target_mount_collision': collision, 'writable_layer_changed': bool(differences.stdout.strip()) if differences.returncode == 0 else None}}))
+          except (ValueError, TypeError, KeyError):
+              print(json.dumps({'runtime_metadata': 'unavailable'}))
+          idle_script = r"""
+          const { MongoClient } = require('mongodb');
+          (async () => {
+            const out = { metrics_available: false, bridge_counts_available: false };
+            try {
+              if (!process.env.METRICS_SECRET) throw new Error();
+              const response = await fetch('http://127.0.0.1:3080/metrics', {headers: {Authorization: 'Bearer ' + process.env.METRICS_SECRET}, signal: AbortSignal.timeout(5000)});
+              if (response.status !== 200) throw new Error();
+              const body = await response.text();
+              const sum = (name, onlyChat = false) => {
+                if (!body.includes('# TYPE ' + name + ' gauge')) return null;
+                const entries = body.split('\n').filter(line => line.startsWith(name + '{') || line.startsWith(name + ' '));
+                return entries.filter(line => !onlyChat || /path="\/api\/(?:agents\/chat|ask)/.test(line)).reduce((total, line) => {
+                  const n = Number(line.slice(line.lastIndexOf(' ') + 1));
+                  if (!Number.isFinite(n) || n < 0) throw new Error();
+                  return total + n;
+                }, 0);
+              };
+              out.metrics_available = true;
+              out.running_jobs = sum('generation_jobs_in_flight');
+              out.sse_streams = sum('sse_streams_in_flight');
+              out.chat_requests = sum('http_requests_in_flight', true);
+              out.paused_jobs = null;
+            } catch {}
+            let client;
+            try {
+              if (!process.env.MONGO_URI) throw new Error();
+              client = new MongoClient(process.env.MONGO_URI, {serverSelectionTimeoutMS:3000, socketTimeoutMS:3000, maxPoolSize:1});
+              await client.connect();
+              const db = client.db();
+              out.execution_pending = await db.collection('vendos_briefing_approvals').countDocuments({state:'pending'},{maxTimeMS:2000});
+              out.draft_pending = await db.collection('vendos_briefing_draft_decisions').countDocuments({state:'pending'},{maxTimeMS:2000});
+              out.unacked_deliveries = await db.collection('vendos_briefing_deliveries').countDocuments({ackedAt:{$exists:false}},{maxTimeMS:2000});
+              out.active_leases = await db.collection('vendos_briefing_leases').countDocuments({until:{$gt:new Date()}},{maxTimeMS:2000});
+              out.bridge_counts_available = true;
+            } catch {} finally { if (client) await client.close(); }
+            process.stdout.write(JSON.stringify(out));
+          })().catch(() => { process.exitCode=1; });
+          """
+          idle = subprocess.run(['docker', 'exec', 'LibreChat-API', 'node', '-e', idle_script], capture_output=True, text=True, timeout=20)
+          try:
+              values = json.loads(idle.stdout)
+              allowed = {'metrics_available','bridge_counts_available','running_jobs','sse_streams','chat_requests','paused_jobs','execution_pending','draft_pending','unacked_deliveries','active_leases'}
+              if idle.returncode or not isinstance(values,dict) or any(k not in allowed or v is not None and type(v) not in (bool,int,float) for k,v in values.items()):
+                  raise ValueError()
+              print(json.dumps({'runtime_idle':values}))
+          except (ValueError, TypeError):
+              print(json.dumps({'runtime_idle':'unavailable'}))
           PY
           then
             echo '::error::Read-only preflight failed; no server files were changed'
