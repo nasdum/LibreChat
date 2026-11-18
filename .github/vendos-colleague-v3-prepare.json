@@ -1,0 +1,18 @@
+{
+  "check_id": "e3bc2cf214286a10d03ca943ba6fb582",
+  "check_receipt_sha256": "bd918419b66e1142b90ce1c4bc617795c5ace6121ef9805b359cf5ea98bb304e",
+  "execute": true,
+  "mode": "prepare",
+  "prepared_commit": "5b820c1f7290a340179aea28e1a9449ef82c84e2",
+  "release_sha256": "1783ca9fa853c5efc43e7b57d227670b2550da2d7473663965fee76fd280bd25",
+  "request": {
+    "expected_corporate_key_sha256": "7d77e3df415f504e7ffabb60b1e7d6518478f4f8c4ab63e2844eb4e844576cba",
+    "expected_user_sha256": "f855ea71e6ab3f66a7218780f15753ff27d2bf7c825416b16905aada83d33218",
+    "expected_vendos_bundle_sha256": "5b2ea09578628adb479cc7235cbd42ed29ead9267ad16e9ecb93d70e94a622ed",
+    "expires_at": 1802804063,
+    "request_id": "vendos-colleague-20261118-v3",
+    "schema": 1,
+    "target_email_sha256": "14322c63c114759593f4985f41d3ad3b9580dfd532dfcf125695ccd4b5eff11c"
+  },
+  "schema": 1
+}
