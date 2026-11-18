@@ -1,0 +1,82 @@
+name: VENDOS one-use Google OAuth public transport key
+
+on:
+  push:
+    branches: [codex/vendos-colleague-20261118]
+    paths: [.github/vendos-google-oauth-key-request.json]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vendos-google-oauth-keygen
+  cancel-in-progress: false
+
+jobs:
+  keygen:
+    if: github.repository == 'nasdum/LibreChat' && github.ref == 'refs/heads/codex/vendos-colleague-20261118'
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Generate one-use server key and return only public metadata
+        shell: bash
+        env:
+          DEPLOY_KEY: ${{ secrets.HETZNER_SSH_KEY }}
+          DEPLOY_HOST: ${{ secrets.HETZNER_HOST }}
+          DEPLOY_PORT: ${{ secrets.HETZNER_SSH_PORT || '22' }}
+          DEPLOY_USER: ${{ secrets.HETZNER_USER || 'root' }}
+        run: |
+          set -euo pipefail
+          set +x
+          [[ "$DEPLOY_HOST" == '167.233.250.66' && "$DEPLOY_PORT" == '22' && "$DEPLOY_USER" == 'root' ]] || { echo 'Unexpected deployment target'; exit 1; }
+          [[ -n "$DEPLOY_KEY" && "$GITHUB_RUN_ATTEMPT" == '1' ]] || { echo 'New explicit key request required'; exit 1; }
+          umask 077
+          task_dir=$(mktemp -d "$RUNNER_TEMP/vendos-google-oauth-keygen.XXXXXX")
+          trap 'rm -f -- "$task_dir/key" "$task_dir/known_hosts" "$task_dir/stdout" "$task_dir/stderr"; rmdir -- "$task_dir"' EXIT
+          python3 - <<'PY'
+          import hashlib, json, pathlib, re, subprocess
+          try:
+              request_path = '.github/vendos-google-oauth-key-request.json'
+              request = json.loads(pathlib.Path(request_path).read_bytes())
+              if type(request) is not dict or set(request) != {'schema', 'execute', 'prepared_commit', 'helper_sha256'}: raise ValueError()
+              if type(request['schema']) is not int or request['schema'] != 1 or request['execute'] is not True: raise ValueError()
+              commit = request['prepared_commit']
+              if type(commit) is not str or not re.fullmatch('[a-f0-9]{40}', commit): raise ValueError()
+              if type(request['helper_sha256']) is not str or not re.fullmatch('[a-f0-9]{64}', request['helper_sha256']): raise ValueError()
+              subprocess.run(['git', 'merge-base', '--is-ancestor', commit, 'HEAD'], check=True, capture_output=True)
+              changed = subprocess.run(['git', 'diff', '--name-only', commit, 'HEAD'], check=True, capture_output=True, text=True).stdout.splitlines()
+              if changed != [request_path]: raise ValueError()
+              helper = pathlib.Path('deploy/vendos-colleague/google-oauth/transport.py')
+              if helper.is_symlink() or helper.resolve() != pathlib.Path.cwd() / helper: raise ValueError()
+              if hashlib.sha256(helper.read_bytes()).hexdigest() != request['helper_sha256']: raise ValueError()
+          except BaseException:
+              raise SystemExit('Explicit key generation request verification failed; no connection made') from None
+          PY
+          printf '%s\n' "$DEPLOY_KEY" | sed 's/\r$//' > "$task_dir/key"
+          unset DEPLOY_KEY
+          printf '%s\n' '167.233.250.66 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIH++s2lmE6yJeJsEm6w+iuMpa+vgbNEH6pzCfCGZbMct' > "$task_dir/known_hosts"
+          transport_status=0
+          ssh -i "$task_dir/key" -p 22 -o BatchMode=yes -o ConnectTimeout=15 \
+            -o IdentitiesOnly=yes -o ForwardAgent=no -o StrictHostKeyChecking=yes \
+            -o "UserKnownHostsFile=$task_dir/known_hosts" -o GlobalKnownHostsFile=/dev/null \
+            -o HostKeyAlgorithms=ssh-ed25519 -o LogLevel=ERROR \
+            "root@$DEPLOY_HOST" 'umask 077; exec python3 - --generate' \
+            < deploy/vendos-colleague/google-oauth/transport.py \
+            > "$task_dir/stdout" 2> "$task_dir/stderr" || transport_status=$?
+          python3 - "$task_dir/stdout" "$transport_status" <<'PY'
+          import importlib.util, json, pathlib, sys
+          try:
+              if sys.argv[2] != '0': raise ValueError()
+              path = pathlib.Path('deploy/vendos-colleague/google-oauth/transport.py')
+              spec = importlib.util.spec_from_file_location('transport', path)
+              transport = importlib.util.module_from_spec(spec)
+              spec.loader.exec_module(transport)
+              output = pathlib.Path(sys.argv[1]).read_bytes()
+              result = transport.validate_public(transport.decode_json(output))
+          except BaseException:
+              raise SystemExit('Public transport key response unavailable; do not retry this run automatically') from None
+          print(json.dumps(result, sort_keys=True))
+          PY
