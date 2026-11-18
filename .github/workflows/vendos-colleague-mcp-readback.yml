@@ -30,7 +30,7 @@ jobs:
           [[ "$DEPLOY_HOST" == '167.233.250.66' && "$DEPLOY_PORT" == '22' && "$DEPLOY_USER" == 'root' ]] || { echo 'Unexpected verification target'; exit 1; }
           [[ -n "$DEPLOY_KEY" ]] || { echo 'Existing deployment credential unavailable'; exit 1; }
           actual=$(sha256sum deploy/vendos-colleague/readback-mcp.cjs | cut -d ' ' -f 1)
-          [[ "$actual" == '645da96240675505a22981ea688391fb30577c088a3e1bdc4415549a26bf0aae' ]] || { echo 'Frozen readback script changed; no connection made'; exit 1; }
+          [[ "$actual" == 'e59f1823779ad093dc62801b1dea5cce857602686d40bd6e09eb29f04f77d1e1' ]] || { echo 'Frozen readback script changed; no connection made'; exit 1; }
           umask 077
           task_dir=$(mktemp -d "$RUNNER_TEMP/vendos-readback-v3.XXXXXX")
           trap 'rm -f -- "$task_dir/key" "$task_dir/known_hosts" "$task_dir/stdout" "$task_dir/stderr"; rmdir -- "$task_dir"' EXIT
@@ -63,7 +63,7 @@ jobs:
           ZERO_FIELDS = {'model_calls','coordinator_submissions','business_actions'}
           PINS = {
               'target_identity_sha256':'f855ea71e6ab3f66a7218780f15753ff27d2bf7c825416b16905aada83d33218',
-              'runtime_bundle_sha256':'5aa7b1dbecf4c9833a9c02b220cfc75b74ab6fe944682aeef0b8427931f0364f',
+              'runtime_bundle_sha256':'e07f0a3ab1c1dd031aa906dde3f6d8991ac54b704e01e03105177bb4f543180a',
               'base_config_sha256':'1c9153e513deac86b9845ecdc566173202b834f7dfafbf6179ac41fa24380c27',
               'notebook_authorize_first_review_sha256':'728efbe1ff7f66f217776c0fbc1dbe7bc1d0bdf64acd0030a8ebab8763135673'}
           def validate(value):
