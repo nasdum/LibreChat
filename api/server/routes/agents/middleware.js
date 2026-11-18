@@ -1,3 +1,4 @@
+const { denyVendosRestrictedRemote } = require('@librechat/api/vendos');
 const { PermissionTypes, Permissions } = require('librechat-data-provider');
 const {
   generateCheckAccess,
@@ -15,12 +16,17 @@ const apiKeyMiddleware = createRequireApiKeyAuth({
   findUser: db.findUser,
 });
 
-const requireRemoteAgentAuth = createRemoteAgentAuth({
+const remoteAgentAuth = createRemoteAgentAuth({
   apiKeyMiddleware,
   findUser: db.findUser,
   getRolesByNames: db.findRolesByNames,
   updateUser: db.updateUser,
   getAppConfig,
+});
+
+const requireRemoteAgentAuth = (req, res, next) => remoteAgentAuth(req, res, (error) => {
+  if (error) return next(error);
+  return denyVendosRestrictedRemote(req, res, next);
 });
 
 const checkRemoteAgentsFeature = generateCheckAccess({

@@ -1,3 +1,4 @@
+export * from './vendos/restricted';
 import { createHash, createHmac, randomUUID } from 'node:crypto';
 import type { Db } from 'mongodb';
 import type { Ancestor, Bundle, Selection, Target, TrustedContext } from './vendos/drafts';
@@ -5,6 +6,7 @@ import { buildDraftDecision, parseDraftApproval, resolveDraftTargets } from './v
 export {
   GOOGLE_EMAIL_EXCEPTION_ENV,
   isVerifiedGoogleEmailException,
+  isVerifiedGoogleIdentity,
   isSameGoogleExceptionIdentity,
 } from './vendos/googleEmailException';
 

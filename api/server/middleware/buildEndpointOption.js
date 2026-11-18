@@ -1,3 +1,4 @@
+const { enforceVendosRestrictedBody } = require('@librechat/api/vendos');
 const {
   handleError,
   applyModelSpecPreset,
@@ -26,6 +27,7 @@ const buildFunction = {
 };
 
 async function buildEndpointOption(req, res, next) {
+  try { enforceVendosRestrictedBody(req); } catch { return res.status(403).json({ error: 'VENDOS_ACCESS_RESTRICTED' }); }
   const { endpoint, endpointType } = req.body;
   const isAgents =
     isAgentsEndpoint(endpoint) || req.baseUrl.startsWith(EndpointURLs[EModelEndpoint.agents]);

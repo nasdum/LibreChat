@@ -1,3 +1,4 @@
+const { enforceVendosRestrictedConfig, isVendosRestrictedIdentity } = require('@librechat/api/vendos');
 const { logger } = require('@librechat/data-schemas');
 const { getAppConfigOptionsFromUser } = require('@librechat/api');
 const { getAppConfig } = require('~/server/services/Config');
@@ -6,8 +7,10 @@ const configMiddleware = async (req, res, next) => {
   try {
     req.config = await getAppConfig(getAppConfigOptionsFromUser(req.user));
 
+    enforceVendosRestrictedConfig(req);
     next();
   } catch (error) {
+    if (isVendosRestrictedIdentity(req.user)) return res.status(403).json({ error: 'VENDOS_ACCESS_RESTRICTED' });
     logger.error('Config middleware error:', {
       error: error.message,
       userRole: req.user?.role,

@@ -1,0 +1,20 @@
+{
+  "file_sha256": {
+    "combined_switch.py": "1eaaef67c5b3361edada93ec841f5717e6395d53327b486bed5aa14a11332c31",
+    "engine_base.py": "512e526483bb9f0e1850175fe916a5f8af7a61921bb586c9edc285e6e23d4f5b",
+    "launch.py": "45f68d15edc24d909d429d9e085c5f7f6d3af12271831f88453bf4b128404bb6",
+    "manifest.json": "4aee58328fed9245dd5f90586ccac7c350dd27137e5756fba680d93647aa71f7",
+    "oauth_switch.py": "e4c009ab6b906545fe1305923b7ca130e0e3fc4516e1b17aea10c57bdf0ad031",
+    "payload/agents-middleware.js": "eb361b0ec5b7d07f7c3fc2e3ca21b98268ba1977c5d1220ac650e7a56f71fa34",
+    "payload/buildEndpointOption.js": "88a8860fdb6de25a413d88a49a4fd9c83d446bf6a911b67897a222747cc43505",
+    "payload/checkDomainAllowed.js": "6c9e273656b57bf707f530a0dddb5f96f0a39723afa7a7c95a563b015cbd3b60",
+    "payload/config-app.js": "ba589b8651bd70d8637fbb7db9fd532b605d550886d983532c6e9fa8476f39d7",
+    "payload/server-index.js": "cda3827e069f0e82209d22a1e9bc31b718d7be767be28f1509c642cba3d36819",
+    "payload/socialLogin.js": "1a82156f27117c4af45eb5e55224d7b99f30c5b0127d9e94c76b56736bb86405",
+    "payload/vendos.cjs": "5b2ea09578628adb479cc7235cbd42ed29ead9267ad16e9ecb93d70e94a622ed",
+    "payload/vendos.cjs.map": "3cc43ef92b0a0a8e153e1a8b8699b74d3478be68820ed6df2de54b109669eefa",
+    "payload/vendosRestrictedChat.js": "689bc05933b4deba3bda4db3a1a378efb0dac73fdedbc234358094e6915c2f2a",
+    "transport.py": "ebdd80ae8fddcc9be935ba62c05f1f2f3ff92482348b0908efaef8fccf6a84bd"
+  },
+  "schema": 1
+}

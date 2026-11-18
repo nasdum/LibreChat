@@ -297,6 +297,8 @@ const startServer = async () => {
 
   /* Per-request capability cache — must be registered before any route that calls hasCapability */
   app.use(capabilityContextMiddleware);
+  app.use('/api', require('./middleware/vendosRestrictedChat'));
+  app.use('/images', require('./middleware/vendosRestrictedChat'));
 
   /* Pre-auth tenant context for unauthenticated routes that need tenant scoping.
    * The reverse proxy / auth gateway sets `X-Tenant-Id` header for multi-tenant deployments. */

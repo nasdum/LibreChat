@@ -3,6 +3,7 @@ const { ErrorTypes } = require('librechat-data-provider');
 const { isEnabled, isEmailDomainAllowed, resolveAppConfigForUser } = require('@librechat/api');
 const {
   isVerifiedGoogleEmailException,
+  isVerifiedGoogleIdentity,
   isSameGoogleExceptionIdentity,
 } = require('@librechat/api/vendos');
 const { createSocialUser, handleExistingUser } = require('./process');
@@ -19,6 +20,11 @@ const socialLogin =
       });
 
       const verifiedGoogleIdentity = { provider, email, emailVerified, googleId: id };
+      if (provider === 'google' && !isVerifiedGoogleIdentity(verifiedGoogleIdentity)) {
+        const error = new Error(ErrorTypes.AUTH_FAILED);
+        error.code = ErrorTypes.AUTH_FAILED;
+        return cb(error);
+      }
       const emailException =
         !options.existingUsersOnly && isVerifiedGoogleEmailException(verifiedGoogleIdentity);
       const baseConfig = await getAppConfig({ baseOnly: true });
@@ -77,8 +83,15 @@ const socialLogin =
         return cb(error);
       }
 
-      const passResult = (user) =>
-        refreshToken && provider === 'google' ? cb(null, user, { refreshToken }) : cb(null, user);
+      const passResult = (user) => {
+        if (provider === 'google' && !isSameGoogleExceptionIdentity(user, verifiedGoogleIdentity)) {
+          const error = new Error(ErrorTypes.AUTH_FAILED);
+          error.code = ErrorTypes.AUTH_FAILED;
+          return cb(error);
+        }
+        return refreshToken && provider === 'google'
+          ? cb(null, user, { refreshToken }) : cb(null, user);
+      };
 
       if (existingUser?.provider === provider) {
         if (

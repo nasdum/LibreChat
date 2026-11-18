@@ -83,3 +83,9 @@ export function isSameGoogleExceptionIdentity(
     normalizeEmail(stored.email) === email
   );
 }
+
+/** Google External OAuth must provide a verified email before any domain authorization. */
+export function isVerifiedGoogleIdentity(identity: GoogleIdentity): boolean {
+  return identity.provider === 'google' && identity.emailVerified === true &&
+    normalizeEmail(identity.email) !== null && validGoogleId(identity.googleId);
+}

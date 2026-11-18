@@ -1,6 +1,6 @@
 const { logger } = require('@librechat/data-schemas');
 const { getAppConfigOptionsFromUser, isEmailDomainAllowed } = require('@librechat/api');
-const { isVerifiedGoogleEmailException } = require('@librechat/api/vendos');
+const { isVerifiedGoogleEmailException, isVerifiedGoogleIdentity } = require('@librechat/api/vendos');
 const { getAppConfig } = require('~/server/services/Config');
 
 /**
@@ -17,6 +17,10 @@ const { getAppConfig } = require('~/server/services/Config');
 const checkDomainAllowed = async (req, res, next) => {
   try {
     const email = req?.user?.email;
+    if (req?.user?.provider === 'google' && !isVerifiedGoogleIdentity(req.user)) {
+      res.redirect('/login');
+      return;
+    }
     const appConfig = await getAppConfig(getAppConfigOptionsFromUser(req?.user));
 
     if (

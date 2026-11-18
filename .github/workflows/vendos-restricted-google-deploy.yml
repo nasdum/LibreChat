@@ -1,0 +1,99 @@
+name: VENDOS restricted coordinator and Google login cutover
+
+on:
+  push:
+    branches: [codex/vendos-colleague-20261118]
+    paths: [.github/vendos-restricted-google-run.json]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vendos-colleague-auth-overlay
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.repository == 'nasdum/LibreChat' && github.ref == 'refs/heads/codex/vendos-colleague-20261118'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Verify explicit request and switch exact OAuth fields
+        shell: bash
+        env:
+          DEPLOY_KEY: ${{ secrets.HETZNER_SSH_KEY }}
+          DEPLOY_HOST: ${{ secrets.HETZNER_HOST }}
+          DEPLOY_PORT: ${{ secrets.HETZNER_SSH_PORT || '22' }}
+          DEPLOY_USER: ${{ secrets.HETZNER_USER || 'root' }}
+        run: |
+          set -euo pipefail
+          set +x
+          [[ "$DEPLOY_HOST" == '167.233.250.66' && "$DEPLOY_PORT" == '22' && "$DEPLOY_USER" == 'root' ]] || { echo 'Unexpected deployment target'; exit 1; }
+          [[ -n "$DEPLOY_KEY" && "$GITHUB_RUN_ID" =~ ^[0-9]+$ && "$GITHUB_RUN_ATTEMPT" =~ ^[0-9]+$ ]] || { echo 'Deployment input unavailable'; exit 1; }
+          umask 077
+          task_dir=$(mktemp -d "$RUNNER_TEMP/vendos-google-oauth.XXXXXX")
+          trap 'rm -f -- "$task_dir/key" "$task_dir/known_hosts" "$task_dir/payload.tar" "$task_dir/pins" "$task_dir/stdout" "$task_dir/stderr"; rmdir -- "$task_dir"' EXIT
+          python3 - "$task_dir" <<'PY'
+          import datetime as dt, hashlib, importlib.util, json, pathlib, re, subprocess, sys
+          task = pathlib.Path(sys.argv[1])
+          root = pathlib.Path('deploy/vendos-colleague/restricted-chat').resolve()
+          request_path = '.github/vendos-restricted-google-run.json'
+          expected = {'engine_base.py', 'oauth_switch.py', 'combined_switch.py', 'transport.py', 'launch.py', 'manifest.json'}
+          expected |= {'payload/' + name for name in ['socialLogin.js','checkDomainAllowed.js','server-index.js','buildEndpointOption.js','config-app.js','agents-middleware.js','vendosRestrictedChat.js','vendos.cjs','vendos.cjs.map']}
+          try:
+              request = json.loads(pathlib.Path(request_path).read_bytes())
+              commit = request['prepared_commit']
+              if not isinstance(commit, str) or not re.fullmatch('[a-f0-9]{40}', commit): raise ValueError()
+              subprocess.run(['git', 'merge-base', '--is-ancestor', commit, 'HEAD'], check=True, capture_output=True)
+              changed = subprocess.run(['git', 'diff', '--name-only', commit, 'HEAD'], check=True, capture_output=True, text=True).stdout.splitlines()
+              if changed != [request_path]: raise ValueError()
+              raw = (root / 'release-files.json').read_bytes()
+              if hashlib.sha256(raw).hexdigest() != request['release_sha256']: raise ValueError()
+              release = json.loads(raw)
+              if release['schema'] != 1 or set(release['file_sha256']) != expected: raise ValueError()
+              for name, digest in release['file_sha256'].items():
+                  path = root / name
+                  if path.is_symlink() or not path.resolve().is_relative_to(root): raise ValueError()
+                  if hashlib.sha256(path.read_bytes()).hexdigest() != digest: raise ValueError()
+              spec = importlib.util.spec_from_file_location('verified_launch', root / 'launch.py')
+              launch = importlib.util.module_from_spec(spec); spec.loader.exec_module(launch)
+              launch.package_request(root, request, task / 'payload.tar', dt.datetime.now(dt.timezone.utc))
+              (task / 'pins').write_text('\n'.join(request[k] for k in ['release_sha256', 'envelope_sha256', 'pause_proof_sha256']) + '\n')
+          except BaseException:
+              raise SystemExit('Explicit OAuth request verification failed; no connection made') from None
+          PY
+          mapfile -t pins < "$task_dir/pins"
+          [[ ${#pins[@]} == 3 && "${pins[0]}" =~ ^[a-f0-9]{64}$ && "${pins[1]}" =~ ^[a-f0-9]{64}$ && "${pins[2]}" =~ ^[a-f0-9]{64}$ ]] || exit 1
+          printf '%s\n' "$DEPLOY_KEY" | sed 's/\r$//' > "$task_dir/key"
+          unset DEPLOY_KEY
+          printf '%s\n' '167.233.250.66 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIH++s2lmE6yJeJsEm6w+iuMpa+vgbNEH6pzCfCGZbMct' > "$task_dir/known_hosts"
+          remote="umask 077; set -eu; base=/var/backups/librechat-restricted-google-release; test ! -L \"\$base\"; mkdir -p \"\$base\"; test \"\$(stat -c '%u:%a' \"\$base\")\" = '0:700'; mkdir \"\$base/$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT\"; cd \"\$base/$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT\"; tar --extract --file=- --no-same-owner --no-same-permissions; exec python3 launch.py --execute --release-sha256 ${pins[0]} --envelope-sha256 ${pins[1]} --pause-proof-sha256 ${pins[2]}"
+          transport_status=0
+          ssh -i "$task_dir/key" -p 22 -o BatchMode=yes -o ConnectTimeout=15 \
+            -o IdentitiesOnly=yes -o ForwardAgent=no -o StrictHostKeyChecking=yes \
+            -o "UserKnownHostsFile=$task_dir/known_hosts" -o GlobalKnownHostsFile=/dev/null \
+            -o HostKeyAlgorithms=ssh-ed25519 -o LogLevel=ERROR \
+            "root@$DEPLOY_HOST" "$remote" < "$task_dir/payload.tar" \
+            > "$task_dir/stdout" 2> "$task_dir/stderr" || transport_status=$?
+          python3 - "$task_dir/stdout" "$transport_status" <<'PY'
+          import json, pathlib, re, sys
+          try:
+              result = json.loads(pathlib.Path(sys.argv[1]).read_text().splitlines()[-1])
+              booleans = {'health_ok', 'only_two_oauth_env_replaced', 'configuration_parity',
+                          'owner_approval_preserved', 'restricted_payload_verified', 'current_filesystem_snapshotted',
+                          'original_container_retained', 'external_api_calls', 'metrics_available', 'non_claude_moderation_disabled'}
+              allowed = booleans | {'status', 'error_code', 'running_jobs_observed'}
+              if not isinstance(result, dict) or set(result) - allowed: raise ValueError()
+              if result.get('status') not in {'deployed', 'stopped'}: raise ValueError()
+              if any(type(result[k]) is not bool for k in booleans & set(result)): raise ValueError()
+              if 'error_code' in result and not re.fullmatch('[A-Z_]{1,100}', result['error_code']): raise ValueError()
+              count = result.get('running_jobs_observed')
+              if count is not None and (type(count) not in (int, float) or not 0 <= count < 100000000): raise ValueError()
+          except BaseException:
+              raise SystemExit('OAuth switch response unavailable; inspect private backup before any retry') from None
+          print(json.dumps(result, sort_keys=True))
+          if sys.argv[2] != '0' or result['status'] != 'deployed': raise SystemExit(1)
+          PY
