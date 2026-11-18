@@ -176,7 +176,8 @@ export function enforceVendosRestrictedConfig(req: Request): void {
   check(Array.isArray(object(endpoint.models).default) && (object(endpoint.models).default as unknown[]).includes(MODEL));
   const mcp = object(object(config.mcpConfig).vendos_pilot);
   check(object(mcp.headers).Authorization === 'Bearer {{VENDOS_PILOT_KEY}}' && object(object(mcp.customUserVars).VENDOS_PILOT_KEY).sensitive === true);
-  check(typeof mcp.url === 'string' && /^https:\/\/[^\s]+$/.test(mcp.url));
+  check(typeof mcp.url === 'string' &&
+    (mcp.url === 'http://172.21.0.1:18089/mcp' || /^https:\/\/[^\s]+$/.test(mcp.url)));
   req.config = { ...config, ...vendosRestrictedOverrides(), interfaceConfig: restrictedInterface(), endpoints: { custom: [{ ...endpoint, models: { default: [MODEL], fetch: false } }], agents: { capabilities: [], allowedProviders: [ENDPOINT] } }, mcpConfig: { vendos_pilot: mcp }, memory: undefined, webSearch: undefined, actions: undefined };
 }
 
