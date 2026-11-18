@@ -128,7 +128,7 @@ async function main(targetHash) {
   return result;
 }
 module.exports = { MARKER, sha, keyKind, summarizeConfig, selectTarget, main };
-if (require.main === module) {
+if (require.main === module || process.argv[1] === '-') {
   // Preserve exactly one structured output line. Suppress dependency diagnostics
   // which could otherwise include connection strings. No application is imported.
   const write = process.stdout.write.bind(process.stdout);
