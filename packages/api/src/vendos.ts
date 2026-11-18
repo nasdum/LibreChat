@@ -2,6 +2,11 @@ import { createHash, createHmac, randomUUID } from 'node:crypto';
 import type { Db } from 'mongodb';
 import type { Ancestor, Bundle, Selection, Target, TrustedContext } from './vendos/drafts';
 import { buildDraftDecision, parseDraftApproval, resolveDraftTargets } from './vendos/drafts';
+export {
+  GOOGLE_EMAIL_EXCEPTION_ENV,
+  isVerifiedGoogleEmailException,
+  isSameGoogleExceptionIdentity,
+} from './vendos/googleEmailException';
 
 const PROJECT = 'vendos-cz';
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;

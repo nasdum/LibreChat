@@ -1,0 +1,31 @@
+{
+  "baseline_sha256": {
+    "MCP.js": "1ea4a33ecbfff103fa6366f04c5e9f8da1b54bdad0d71bea1132e0dfb7fd35c4",
+    "PluginService.js": "07997a0cd92545aa4b4823cdf47db9d5880fe2239c5f8ac12cabedc7e01d5f03",
+    "VendosBriefing.js": "ea1c4ae84323a993b33f419a872696aab9a17e590e038694238808d9637914b2",
+    "api-package.json": "04ef36bf22990b1003c88302df2e83e74b1d912a8705bfcf1e830f609dbbc94c",
+    "checkDomainAllowed.js": "cf86c0c511bb3769ad2117b0950bdb52638c4c0a1ee93ef8bef117dc0cca8187",
+    "request.js": "b43d80081aa53b056ca84ef68651db963041d97aaa42a961b853689b7c066d74",
+    "socialLogin.js": "2b2fb0ea95f23815827e5ddfc1d60f429516358fc03ed36e9c9d5647a4902d59",
+    "vendos.cjs": "f5b240afe88c7eaf0e02d1ef2fb0d592ebf73fe05f1e25c42de445275b43cf28",
+    "vendos.cjs.map": "8bfe8ba8aa9650f443309edb175210457b1f6dcbc4c65e831249b848334c3ff7"
+  },
+  "environment_patch": {
+    "VENDOS_GOOGLE_EMAIL_SHA256_ALLOWLIST": "14322c63c114759593f4985f41d3ad3b9580dfd532dfcf125695ccd4b5eff11c"
+  },
+  "paths": {
+    "checkDomainAllowed.js": "/app/api/server/middleware/checkDomainAllowed.js",
+    "socialLogin.js": "/app/api/strategies/socialLogin.js",
+    "vendos.cjs": "/app/packages/api/dist/vendos.cjs",
+    "vendos.cjs.map": "/app/packages/api/dist/vendos.cjs.map"
+  },
+  "payload_sha256": {
+    "checkDomainAllowed.js": "c2b67bb773844ae9559e338076498f31c311d2134f7498dcee56a879a3c4d073",
+    "socialLogin.js": "0aa083682a36c288a004ca81286ff258ba51740ed73f08e36a2144ea319f947f",
+    "vendos.cjs": "c4f3c4f5401fefa2246edf2780b335092ba524b80b3758faa8e1622db24a8502",
+    "vendos.cjs.map": "2e039d3facf87d351809c23fb1c32726a27e6edae291fa4db463a6bd5fea14e2"
+  },
+  "preflight_sha256": "3f829e6716b83589fba65cae6aaa018bcecc7d48d50179180911b5204ca14b08",
+  "purpose": "vendos-colleague-google-auth-only",
+  "schema": 2
+}

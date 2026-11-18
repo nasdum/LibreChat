@@ -1,6 +1,10 @@
 const { logger } = require('@librechat/data-schemas');
 const { ErrorTypes } = require('librechat-data-provider');
 const { isEnabled, isEmailDomainAllowed, resolveAppConfigForUser } = require('@librechat/api');
+const {
+  isVerifiedGoogleEmailException,
+  isSameGoogleExceptionIdentity,
+} = require('@librechat/api/vendos');
 const { createSocialUser, handleExistingUser } = require('./process');
 const { getAppConfig } = require('~/server/services/Config');
 const { findUser, updateUser } = require('~/models');
@@ -14,8 +18,15 @@ const socialLogin =
         profile,
       });
 
+      const verifiedGoogleIdentity = { provider, email, emailVerified, googleId: id };
+      const emailException =
+        !options.existingUsersOnly && isVerifiedGoogleEmailException(verifiedGoogleIdentity);
       const baseConfig = await getAppConfig({ baseOnly: true });
-      if (!isEmailDomainAllowed(email, baseConfig?.registration?.allowedDomains)) {
+      const baseDomainAllowed = isEmailDomainAllowed(
+        email,
+        baseConfig?.registration?.allowedDomains,
+      );
+      if (!baseDomainAllowed && !emailException) {
         logger.error(
           `[${provider}Login] Authentication blocked - email domain not allowed [Email: ${email}]`,
         );
@@ -45,13 +56,24 @@ const socialLogin =
         ? await resolveAppConfigForUser(getAppConfig, existingUser)
         : baseConfig;
 
-      if (!isEmailDomainAllowed(email, appConfig?.registration?.allowedDomains)) {
+      const domainAllowed = isEmailDomainAllowed(email, appConfig?.registration?.allowedDomains);
+      if (!domainAllowed && !emailException) {
         logger.error(
           `[${provider}Login] Authentication blocked - email domain not allowed [Email: ${email}]`,
         );
         const error = new Error(ErrorTypes.AUTH_FAILED);
         error.code = ErrorTypes.AUTH_FAILED;
         error.message = 'Email domain not allowed';
+        return cb(error);
+      }
+
+      if (
+        (!baseDomainAllowed || !domainAllowed) &&
+        existingUser &&
+        !isSameGoogleExceptionIdentity(existingUser, verifiedGoogleIdentity)
+      ) {
+        const error = new Error(ErrorTypes.AUTH_FAILED);
+        error.code = ErrorTypes.AUTH_FAILED;
         return cb(error);
       }
 

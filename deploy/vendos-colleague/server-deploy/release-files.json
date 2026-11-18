@@ -1,0 +1,12 @@
+{
+  "file_sha256": {
+    "deploy.py": "512e526483bb9f0e1850175fe916a5f8af7a61921bb586c9edc285e6e23d4f5b",
+    "launch.py": "e2b6d5c0b6f7c9a6a4fff5c6e1b6ca2b6a976cd117a7f860993d01e5d3a970d8",
+    "manifest.json": "79078cc861f8cbea307a79fe405893c9240f9390fab45c8cd17eabca58ca0e33",
+    "payload/checkDomainAllowed.js": "c2b67bb773844ae9559e338076498f31c311d2134f7498dcee56a879a3c4d073",
+    "payload/socialLogin.js": "0aa083682a36c288a004ca81286ff258ba51740ed73f08e36a2144ea319f947f",
+    "payload/vendos.cjs": "c4f3c4f5401fefa2246edf2780b335092ba524b80b3758faa8e1622db24a8502",
+    "payload/vendos.cjs.map": "2e039d3facf87d351809c23fb1c32726a27e6edae291fa4db463a6bd5fea14e2"
+  },
+  "schema": 1
+}
