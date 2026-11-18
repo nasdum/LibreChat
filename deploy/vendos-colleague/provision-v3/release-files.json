@@ -1,0 +1,14 @@
+{
+  "file_sha256": {
+    "core/cli.cjs": "5facbcd8d6faa8d7e050c261f4ace382891b93977de3ef3fbcc018c7a5ff6ec9",
+    "core/mongo-storage.cjs": "e2d29d09353e9acc0ec92ad5d7275a1177a1c8c9ea3abf468b75c4f57ab9d241",
+    "core/policy.cjs": "53816564293f5c415000f6effc49c207ad1dfb5663bc842ce2c6e5e3d4848fb4",
+    "core/policy.json": "92b94e78f4ebd65d0257269bf22aa5d320d2741363f49060450209ca17214a68",
+    "core/provision.cjs": "2a2eb9471d5d8ea99c271ab9e53158e73937a6f064a6935153df9e237c768c12",
+    "core/server-runtime.cjs": "05cc7da451b849c969ec24e915a6f3afe0af5bb49cecba6f5b7a58a7c20fa6f8",
+    "entry.cjs": "63f2898f16fe7f20549c7edf4a2691d21d08769d155242b7240caef68bfb785b",
+    "runner.py": "45e800ba2c7462bb4e5507f082243a3931324135a7eed6a99908956b112e7f10",
+    "source-manifest.json": "739b9b48467c3352d024f5a110c2113be65395d998884fc780bc0157e5d3f6e9"
+  },
+  "schema": 1
+}

@@ -1,0 +1,25 @@
+{
+  "schema": 1,
+  "scope": "offline_vendos_chat_only_v3_provisioning",
+  "deployed": false,
+  "credentials_issued": false,
+  "canonical_config_sha256": "61abd5d496c96f0b6a1df7d7c356394cf08865a7b3c8f8a08bfb495db38c0509",
+  "tested_runtime_bundle_sha256": "5b2ea09578628adb479cc7235cbd42ed29ead9267ad16e9ecb93d70e94a622ed",
+  "core_and_mongo_tests": 28,
+  "independent_mongo_tests": 4,
+  "file_sha256": {
+    "provision.cjs": "2a2eb9471d5d8ea99c271ab9e53158e73937a6f064a6935153df9e237c768c12",
+    "mongo-storage.cjs": "e2d29d09353e9acc0ec92ad5d7275a1177a1c8c9ea3abf468b75c4f57ab9d241",
+    "server-runtime.cjs": "05cc7da451b849c969ec24e915a6f3afe0af5bb49cecba6f5b7a58a7c20fa6f8",
+    "cli.cjs": "5facbcd8d6faa8d7e050c261f4ace382891b93977de3ef3fbcc018c7a5ff6ec9",
+    "policy.cjs": "53816564293f5c415000f6effc49c207ad1dfb5663bc842ce2c6e5e3d4848fb4",
+    "policy.json": "92b94e78f4ebd65d0257269bf22aa5d320d2741363f49060450209ca17214a68",
+    "provision.test.cjs": "fb40ab622a9a180462a7266607fc2b5ad77d6f51e852e20a3a9c00136344fe30",
+    "mongo-storage.test.cjs": "4a889f333c0e1479ffd6c8f4c5d4c5e31c56032166bd0684ce12843a152e63b7",
+    "independent-mongo.test.cjs": "64a2ad4ca01ba3a244563b647664122bfe5a4551271f591beca82bc396ff265c",
+    "README.txt": "39cae99f320200cc47b8195df499c17e7acca31799650878eff8b89f26e38df5",
+    "INDEPENDENT-REVIEW.txt": "979612accb61fb4e99a19c51cd6da02b5cf5ed488661cbe135a2e001b61e5d63",
+    "test-results.txt": "56370ea6bddf75bdbabddbfef6cece7cd8d56cc7460efccb9aab23945783befe",
+    "independent-test-results.txt": "d824e425af04f79b63e8e23f25ea90744a8b7965e1d81b99e45d5ff10841c2d4"
+  }
+}

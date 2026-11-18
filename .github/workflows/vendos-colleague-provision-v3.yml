@@ -1,0 +1,98 @@
+name: VENDOS v3 explicit colleague check or prepare
+on:
+  push:
+    branches: [codex/vendos-colleague-20261118]
+    paths: [.github/vendos-colleague-v3-check.json, .github/vendos-colleague-v3-prepare.json]
+permissions:
+  contents: read
+concurrency:
+  group: vendos-colleague-provision-v3
+  cancel-in-progress: false
+jobs:
+  run:
+    if: github.repository == 'nasdum/LibreChat' && github.ref == 'refs/heads/codex/vendos-colleague-20261118'
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Validate explicit phase and run reviewed v3 helper
+        shell: bash
+        env:
+          DEPLOY_KEY: ${{ secrets.HETZNER_SSH_KEY }}
+          DEPLOY_HOST: ${{ secrets.HETZNER_HOST }}
+          DEPLOY_PORT: ${{ secrets.HETZNER_SSH_PORT || '22' }}
+          DEPLOY_USER: ${{ secrets.HETZNER_USER || 'root' }}
+        run: |
+          set -euo pipefail
+          set +x
+          [[ "$DEPLOY_HOST" == '167.233.250.66' && "$DEPLOY_PORT" == '22' && "$DEPLOY_USER" == 'root' ]] || { echo 'Unexpected target'; exit 1; }
+          [[ -n "$DEPLOY_KEY" && "$GITHUB_RUN_ID" =~ ^[0-9]+$ && "$GITHUB_RUN_ATTEMPT" =~ ^[0-9]+$ ]] || exit 1
+          umask 077
+          task_dir=$(mktemp -d "$RUNNER_TEMP/vendos-provision-v3.XXXXXX")
+          trap 'rm -f -- "$task_dir/key" "$task_dir/known_hosts" "$task_dir/payload.tar" "$task_dir/pin" "$task_dir/request.json" "$task_dir/stdout" "$task_dir/stderr"; rmdir -- "$task_dir"' EXIT
+          python3 - "$task_dir" <<'PY'
+          import hashlib, importlib.util, io, json, pathlib, re, subprocess, sys, tarfile, time
+          task = pathlib.Path(sys.argv[1]); root = pathlib.Path('deploy/vendos-colleague/provision-v3').resolve()
+          paths = {'check':'.github/vendos-colleague-v3-check.json','prepare':'.github/vendos-colleague-v3-prepare.json'}
+          expected = {'runner.py','entry.cjs','source-manifest.json'} | {'core/'+n for n in ['cli.cjs','mongo-storage.cjs','policy.cjs','policy.json','provision.cjs','server-runtime.cjs']}
+          try:
+              changed = subprocess.run(['git','diff','--name-only','HEAD^','HEAD'],check=True,capture_output=True,text=True).stdout.splitlines()
+              selected = [p for p in paths.values() if p in changed]
+              if len(selected) != 1: raise ValueError()
+              raw = pathlib.Path(selected[0]).read_bytes(); request = json.loads(raw)
+              if paths.get(request['mode']) != selected[0] or not re.fullmatch('[a-f0-9]{40}',request['prepared_commit']): raise ValueError()
+              subprocess.run(['git','merge-base','--is-ancestor',request['prepared_commit'],'HEAD'],check=True,capture_output=True)
+              actual = subprocess.run(['git','diff','--name-only',request['prepared_commit'],'HEAD'],check=True,capture_output=True,text=True).stdout.splitlines()
+              if actual != selected: raise ValueError()
+              release_raw = (root/'release-files.json').read_bytes()
+              if hashlib.sha256(release_raw).hexdigest() != request['release_sha256']: raise ValueError()
+              release = json.loads(release_raw)
+              if release['schema'] != 1 or set(release['file_sha256']) != expected: raise ValueError()
+              for name,digest in release['file_sha256'].items():
+                  p=root/name
+                  if p.is_symlink() or not p.resolve().is_relative_to(root) or hashlib.sha256(p.read_bytes()).hexdigest()!=digest: raise ValueError()
+              spec=importlib.util.spec_from_file_location('verified_runner',root/'runner.py'); runner=importlib.util.module_from_spec(spec); spec.loader.exec_module(runner)
+              runner.validate_request(request,int(time.time()))
+              content=runner.load_release(root,request['release_sha256']); content['run-request.json']=raw
+              with tarfile.open(task/'payload.tar','x') as archive:
+                  for name,data in sorted(content.items()):
+                      info=tarfile.TarInfo(name); info.size=len(data); info.mode=0o600; info.mtime=0
+                      archive.addfile(info,io.BytesIO(data))
+              (task/'pin').write_text(hashlib.sha256(raw).hexdigest())
+              (task/'request.json').write_bytes(raw)
+          except BaseException:
+              raise SystemExit('Provision request validation failed; no connection made') from None
+          PY
+          request_pin=$(cat "$task_dir/pin")
+          [[ "$request_pin" =~ ^[a-f0-9]{64}$ ]] || exit 1
+          printf '%s\n' "$DEPLOY_KEY" | sed 's/\r$//' > "$task_dir/key"
+          unset DEPLOY_KEY
+          printf '%s\n' '167.233.250.66 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIH++s2lmE6yJeJsEm6w+iuMpa+vgbNEH6pzCfCGZbMct' > "$task_dir/known_hosts"
+          remote="umask 077; set -eu; base=/var/backups/librechat-vendos-provision-v3-release; test ! -L \"\$base\"; mkdir -p \"\$base\"; test \"\$(stat -c '%u:%a' \"\$base\")\" = '0:700'; mkdir \"\$base/$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT\"; cd \"\$base/$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT\"; tar --extract --file=- --no-same-owner --no-same-permissions; exec python3 runner.py --execute --request-file run-request.json --request-sha256 $request_pin"
+          transport_status=0
+          ssh -i "$task_dir/key" -p 22 -o BatchMode=yes -o ConnectTimeout=15 -o IdentitiesOnly=yes \
+            -o ForwardAgent=no -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$task_dir/known_hosts" \
+            -o GlobalKnownHostsFile=/dev/null -o HostKeyAlgorithms=ssh-ed25519 -o LogLevel=ERROR \
+            "root@$DEPLOY_HOST" "$remote" < "$task_dir/payload.tar" > "$task_dir/stdout" 2> "$task_dir/stderr" || transport_status=$?
+          python3 - "$task_dir/stdout" "$task_dir/request.json" "$transport_status" <<'PY'
+          import importlib.util,json,pathlib,re,sys
+          try:
+              root=pathlib.Path('deploy/vendos-colleague/provision-v3').resolve()
+              spec=importlib.util.spec_from_file_location('verified_runner',root/'runner.py'); runner=importlib.util.module_from_spec(spec);spec.loader.exec_module(runner)
+              request=json.loads(pathlib.Path(sys.argv[2]).read_bytes())
+              value=json.loads(pathlib.Path(sys.argv[1]).read_text().splitlines()[-1])
+              if 'error_code' in value:
+                  runner.safe_result(value,request['request'],request['mode'])
+              else:
+                  allowed={'schema','mode','result','non_claude_moderation_disabled','notebook_registration_performed'}
+                  if request['mode']=='check': allowed|={'check_id','check_receipt_sha256','check_valid_seconds'}
+                  if set(value)!=allowed or value['schema']!=1 or value['mode']!=request['mode'] or value['non_claude_moderation_disabled'] is not True or value['notebook_registration_performed'] is not False: raise ValueError()
+                  runner.safe_result(value['result'],request['request'],request['mode'])
+                  if request['mode']=='check' and (not re.fullmatch('[a-f0-9]{32}',value['check_id']) or not runner.is_hash(value['check_receipt_sha256']) or value['check_valid_seconds']!=1800): raise ValueError()
+          except BaseException:
+              raise SystemExit('Provision response unavailable; inspect before any retry') from None
+          print(json.dumps(value,sort_keys=True))
+          if sys.argv[3]!='0' or 'error_code' in value: raise SystemExit(1)
+          PY

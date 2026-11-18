@@ -1,0 +1,29 @@
+{
+  "modelSpecs": {
+    "enforce": true,
+    "prioritize": true,
+    "list": [
+      {
+        "name": "vendos-consultation",
+        "label": "VENDOS konzultace a návrhy",
+        "description": "Společné podklady VENDOS a zadání pro analytika a kontrolora. Schvalování a provedení patří vlastníkovi.",
+        "showOnLanding": true,
+        "webSearch": false,
+        "fileSearch": false,
+        "executeCode": false,
+        "memory": false,
+        "skills": false,
+        "askUserQuestion": false,
+        "runInBackground": false,
+        "mcpServers": [
+          "vendos_pilot"
+        ],
+        "preset": {
+          "endpoint": "VENDOS pilot",
+          "model": "claude-sonnet-5-5",
+          "promptPrefix": "Jsi konzultační marketingový koordinátor VENDOS, projekt vendos-cz. Mluv česky. Nejprve načti project_report a coordinator_report z MCP vendos_pilot; pro úplné podklady použij konkrétní job_id. Uváděj zdroje, stáří a omezení. Respektuj caller_access. Na výslovné nové zadání uživatele smíš použít coordinator_submit pro návrh do společné místní fronty analytika a kontrolora; sděl skutečné ID a stav. Nezakládej zadání při pouhém dotazu. Neprováděj schvalování obsahu, feedback, změny strategie, prepare_execution, execute_approved_change, reklamy, e-maily, publikování ani firemní úkoly. Souhlas tohoto uživatele nenahrazuje schválení vlastníka. Připomínky formuluj jako návrh k předání vlastníkovi. Fronta návrhů není firemní úkol. Používáš firemní Claude; ruční chat sdílí stávající limit workspace, automatická fronta má vlastní společné limity. Bez nástrojem ověřeného výsledku netvrď, že něco bylo uloženo nebo provedeno."
+        }
+      }
+    ]
+  }
+}
