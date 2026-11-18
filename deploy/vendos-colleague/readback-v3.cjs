@@ -3,7 +3,8 @@ const fs = require('node:fs');
 const { createHash } = require('node:crypto');
 const { createRequire } = require('node:module');
 const BASE_SHA = '1c9153e513deac86b9845ecdc566173202b834f7dfafbf6179ac41fa24380c27';
-const BUNDLE_SHA = '5b2ea09578628adb479cc7235cbd42ed29ead9267ad16e9ecb93d70e94a622ed';
+const PRIVATE_MCP_URL = 'http://172.21.0.1:18089/mcp';
+const BUNDLE_SHA = '8a7b070137826d1fb89ca64be9a2dda636fa9b9d2cc63fd4852d834ccfb8ebbd';
 const SERVICE_REVIEW_SHA = '728efbe1ff7f66f217776c0fbc1dbe7bc1d0bdf64acd0030a8ebab8763135673';
 const PROJECT = 'vendos-cz';
 const BAD_PROJECT = '__vendos_readback_denied_not_a_project__';
@@ -20,10 +21,43 @@ const SAFE_ERROR_CODES = new Set([
   'MCP_INVALID_SESSION', 'MCP_PROTOCOL_UNSUPPORTED', 'MCP_TOOL_CATALOG_INCOMPLETE',
   'MCP_REQUIRED_TOOL_MISSING', 'MCP_PROJECT_ACCESS_NOT_EXACT', 'MCP_PROJECT_REPORT_SHAPE',
   'MCP_CALLER_ACCESS_INVALID', 'MCP_SCOPES_NOT_EXACT', 'MCP_NEGATIVE_AUTHORIZATION_NOT_PROVEN',
+  'LIVE_FENCE_REQUEST_REJECTED', 'LIVE_FENCE_CONFIG_REJECTED', 'LIVE_FENCE_UNEXPECTED_LOOKUP',
 ]);
 const hash = (value) => createHash('sha256').update(value).digest('hex');
 const fail = (condition, code) => { if (!condition) throw new Error(code); };
 const object = (value) => value && typeof value === 'object' && !Array.isArray(value);
+
+function trustedMcpDestination(value, configSha256) {
+  fail(configSha256 === BASE_SHA && value === PRIVATE_MCP_URL, 'MCP_DESTINATION_UNSAFE');
+  return new URL(value);
+}
+
+async function verifyInstalledFence(fence, user, records, mergedConfig) {
+  // The identity is the fresh, independently verified Mongo record. This tests authorization,
+  // not JWT authentication: no bearer is fabricated and no HTTP server request is made.
+  fail(fence.isVerifiedGoogleEmailException(user), 'LIVE_FENCE_REQUEST_REJECTED');
+  const request = {
+    method: 'POST', originalUrl: '/api/agents/chat/VENDOS%20pilot', user, config: mergedConfig,
+    body: { endpoint: 'VENDOS pilot', endpointType: 'custom', model: 'claude-sonnet-5-5',
+      spec: 'vendos-consultation', conversationId: 'new', text: 'Authorization guard verification; never dispatch to a model.' },
+  };
+  const unavailable = async () => { throw new Error('LIVE_FENCE_UNEXPECTED_LOOKUP'); };
+  const middleware = fence.createVendosRestrictedChat({
+    authenticate(req, _res, next) { fail(req.user === user, 'LIVE_FENCE_REQUEST_REJECTED'); next(); },
+    provision: async () => records,
+    conversation: unavailable, conversations: unavailable, generation: unavailable, generations: unavailable,
+  });
+  await new Promise((resolve, reject) => {
+    const response = { status() { return this; }, json() { reject(new Error('LIVE_FENCE_REQUEST_REJECTED')); } };
+    middleware(request, response, (error) => {
+      if (error) { reject(new Error('LIVE_FENCE_REQUEST_REJECTED')); return; }
+      try { fence.enforceVendosRestrictedConfig(request); resolve(); }
+      catch { reject(new Error('LIVE_FENCE_CONFIG_REJECTED')); }
+    });
+  });
+  return { installed_request_fence_verified: true, installed_effective_config_guard_verified: true,
+    http_jwt_authentication_exercised: false };
+}
 const NEGATIVE = [
   ['feedback', 'coordinator_feedback', { project: PROJECT, job_id: '__readback_no_such_job__', expected_revision: -1, decision: '__invalid_readback_decision__', reason: 'Authorization readback only; no change requested.' }],
   ['execution', 'execute_approved_change', { project: PROJECT, plan_id: '__readback_no_such_plan__', plan_hash: '__invalid_readback_hash__', approval_summary: '', approval_receipt: '' }],
@@ -153,8 +187,7 @@ async function main(args = process.argv.slice(2)) {
   const base = yaml.load(rawConfig.toString('utf8'));
   const mcp = base.mcpServers?.vendos_pilot;
   fail(mcp?.headers?.Authorization === 'Bearer {{VENDOS_PILOT_KEY}}' && mcp.customUserVars?.VENDOS_PILOT_KEY?.sensitive === true, 'MCP_CONFIG_DRIFT');
-  const url = new URL(mcp.url);
-  fail(url.protocol === 'https:' && !url.username && !url.password && !url.hash, 'MCP_DESTINATION_UNSAFE');
+  const url = trustedMcpDestination(mcp.url, hash(rawConfig));
   fail(String(process.env.OPENAI_MODERATION || '').trim().toLowerCase() !== 'true', 'NON_CLAUDE_MODERATION_ENABLED');
   const schemas = appRequire('@librechat/data-schemas');
   schemas.logger.silent = true;
@@ -186,6 +219,7 @@ async function main(args = process.argv.slice(2)) {
     const merged = schemas.mergeConfigOverrides({ ...base, mcpConfig: base.mcpServers, interfaceConfig: base.interface }, records.activeConfigs);
     const canonical = fence.vendosRestrictedOverrides().modelSpecs;
     fail(Object.entries(canonical).every(([key, value]) => fence.vendosRestrictedDigest(merged.modelSpecs?.[key]) === fence.vendosRestrictedDigest(value)), 'EFFECTIVE_CONFIG_MERGE_MISMATCH');
+    const guardProof = await verifyInstalledFence(fence, user, records, merged);
     token = await api.decrypt(records.plugins[0].value);
     fail(typeof token === 'string' && token.length >= 40 && token.length <= 512 && !/[\r\n]/.test(token) && hash(token) === records.journal.token_sha256, 'MCP_TOKEN_JOURNAL_MISMATCH');
     const result = await verifyMcp(makeRpc(url.href, token), records.journal.subject);
@@ -205,7 +239,7 @@ async function main(args = process.argv.slice(2)) {
       notebook_authorize_first_review_sha256: SERVICE_REVIEW_SHA, live_notebook_source_hash_read: false,
       fence_access_verified_before_and_after: true, installed_pure_config_merge_verified: true,
       full_runtime_config_loader_invoked: false, credential_values_printed: false, business_report_printed: false,
-      mongodb_writes: false, ...result };
+      mongodb_writes: false, ...guardProof, ...result };
   } finally { token = null; await client.close(); }
 }
 
@@ -217,4 +251,4 @@ if (require.main === module || process.argv[1] === '-') {
     output(JSON.stringify({ schema: 1, status: 'stopped', error_code: code, credential_values_printed: false, business_report_printed: false }) + '\n', () => process.exit(1));
   });
 }
-module.exports = { main, makeRpc, parseRpc, toolData, verifyMcp, authorizationDenied, NEGATIVE, BASE_SHA, BUNDLE_SHA };
+module.exports = { main, makeRpc, parseRpc, toolData, verifyMcp, verifyInstalledFence, authorizationDenied, trustedMcpDestination, NEGATIVE, BASE_SHA, BUNDLE_SHA };

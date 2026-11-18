@@ -30,7 +30,7 @@ jobs:
           [[ "$DEPLOY_HOST" == '167.233.250.66' && "$DEPLOY_PORT" == '22' && "$DEPLOY_USER" == 'root' ]] || { echo 'Unexpected verification target'; exit 1; }
           [[ -n "$DEPLOY_KEY" ]] || { echo 'Existing deployment credential unavailable'; exit 1; }
           actual=$(sha256sum deploy/vendos-colleague/readback-v3.cjs | cut -d ' ' -f 1)
-          [[ "$actual" == 'b8e728321efdf7042e499c97fe89935f637fbe37e8a0c7298b7b9d531507ca91' ]] || { echo 'Frozen readback script changed; no connection made'; exit 1; }
+          [[ "$actual" == 'e667997c1e574ba518326a163db0c8ee0f607ab7aea09dce238e338242415180' ]] || { echo 'Frozen readback script changed; no connection made'; exit 1; }
           umask 077
           task_dir=$(mktemp -d "$RUNNER_TEMP/vendos-readback-v3.XXXXXX")
           trap 'rm -f -- "$task_dir/key" "$task_dir/known_hosts" "$task_dir/stdout" "$task_dir/stderr"; rmdir -- "$task_dir"' EXIT
@@ -48,17 +48,19 @@ jobs:
           import datetime as dt, json, pathlib, re, sys
           TRUE_FIELDS = {
               'fence_access_verified_before_and_after','installed_pure_config_merge_verified',
+              'installed_request_fence_verified','installed_effective_config_guard_verified',
               'initialized','required_tools_present','only_vendos_project','project_report_read','coordinator_report_read',
               'caller_actor_matches','shared_project_memory','can_submit','exact_scopes_read_and_submit',
               'feedback_scope_absent','execution_scope_absent','model_scope_absent','source_sync_scope_absent',
               'negative_feedback_vendos_denied','negative_execution_vendos_denied',
               'negative_model_unknown_project_denied','negative_source_unknown_project_denied'}
           FALSE_FIELDS = {'live_notebook_source_hash_read','full_runtime_config_loader_invoked','credential_values_printed',
+              'http_jwt_authentication_exercised',
               'business_report_printed','mongodb_writes','direct_model_scope_only_test_performed','direct_source_scope_only_test_performed'}
           ZERO_FIELDS = {'model_calls','coordinator_submissions','business_actions'}
           PINS = {
               'target_identity_sha256':'f855ea71e6ab3f66a7218780f15753ff27d2bf7c825416b16905aada83d33218',
-              'runtime_bundle_sha256':'5b2ea09578628adb479cc7235cbd42ed29ead9267ad16e9ecb93d70e94a622ed',
+              'runtime_bundle_sha256':'8a7b070137826d1fb89ca64be9a2dda636fa9b9d2cc63fd4852d834ccfb8ebbd',
               'base_config_sha256':'1c9153e513deac86b9845ecdc566173202b834f7dfafbf6179ac41fa24380c27',
               'notebook_authorize_first_review_sha256':'728efbe1ff7f66f217776c0fbc1dbe7bc1d0bdf64acd0030a8ebab8763135673'}
           def validate(value):
