@@ -1,0 +1,11 @@
+{
+  "file_sha256": {
+    "engine_base.py": "512e526483bb9f0e1850175fe916a5f8af7a61921bb586c9edc285e6e23d4f5b",
+    "launch.py": "bb7f37533eb6e45a80b3545b7a7695ca528cc3bcccdd313dce21712b38c49aa6",
+    "manifest.json": "7c39dd2420c0ddae6d6ead23ab76848b2270b3232e3630afcd49cf0100a9b4cc",
+    "payload/vendos.cjs": "e07f0a3ab1c1dd031aa906dde3f6d8991ac54b704e01e03105177bb4f543180a",
+    "payload/vendos.cjs.map": "70f6d7b7c58fdd60441fe5ee3a75229c4b1551d3ff9aa810a7c88e4f7ef10149",
+    "tunnel_switch.py": "c857f905b8e384fdca4d505cfc5ad1f53f895a6373765c0469d64ba9d8c8ad3e"
+  },
+  "schema": 1
+}

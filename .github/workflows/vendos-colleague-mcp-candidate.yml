@@ -1,0 +1,93 @@
+name: VENDOS candidate tool catalog verification
+on:
+  push:
+    branches: [codex/vendos-colleague-20261118]
+    paths:
+      - .github/workflows/vendos-colleague-mcp-candidate.yml
+      - deploy/vendos-colleague/readback-mcp-candidate.cjs
+permissions:
+  contents: read
+concurrency:
+  group: vendos-colleague-mcp-candidate
+  cancel-in-progress: false
+jobs:
+  verify:
+    if: github.repository == 'nasdum/LibreChat' && github.ref == 'refs/heads/codex/vendos-colleague-20261118'
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v5
+      - name: Verify scoped access without model calls or submissions
+        shell: bash
+        env:
+          DEPLOY_KEY: ${{ secrets.HETZNER_SSH_KEY }}
+          DEPLOY_HOST: ${{ secrets.HETZNER_HOST }}
+          DEPLOY_PORT: ${{ secrets.HETZNER_SSH_PORT || '22' }}
+          DEPLOY_USER: ${{ secrets.HETZNER_USER || 'root' }}
+        run: |
+          set -euo pipefail
+          set +x
+          [[ "$DEPLOY_HOST" == '167.233.250.66' && "$DEPLOY_PORT" == '22' && "$DEPLOY_USER" == 'root' ]] || { echo 'Unexpected verification target'; exit 1; }
+          [[ -n "$DEPLOY_KEY" ]] || { echo 'Existing deployment credential unavailable'; exit 1; }
+          actual=$(sha256sum deploy/vendos-colleague/readback-mcp-candidate.cjs | cut -d ' ' -f 1)
+          [[ "$actual" == '4f0af9083cd8611dd9905c21b462e493d4876efddfa3ffed885a5fba9cc26444' ]] || { echo 'Frozen readback script changed; no connection made'; exit 1; }
+          umask 077
+          task_dir=$(mktemp -d "$RUNNER_TEMP/vendos-readback-v3.XXXXXX")
+          trap 'rm -f -- "$task_dir/key" "$task_dir/known_hosts" "$task_dir/stdout" "$task_dir/stderr"; rmdir -- "$task_dir"' EXIT
+          printf '%s\n' "$DEPLOY_KEY" | sed 's/\r$//' > "$task_dir/key"
+          unset DEPLOY_KEY
+          printf '%s\n' '167.233.250.66 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIH++s2lmE6yJeJsEm6w+iuMpa+vgbNEH6pzCfCGZbMct' > "$task_dir/known_hosts"
+          transport_status=0
+          ssh -i "$task_dir/key" -p 22 -o BatchMode=yes -o ConnectTimeout=15 \
+            -o IdentitiesOnly=yes -o ForwardAgent=no -o StrictHostKeyChecking=yes \
+            -o "UserKnownHostsFile=$task_dir/known_hosts" -o GlobalKnownHostsFile=/dev/null \
+            -o HostKeyAlgorithms=ssh-ed25519 -o LogLevel=ERROR \
+            "root@$DEPLOY_HOST" 'docker exec -i --workdir /app LibreChat-API node - --verify --email-sha256 14322c63c114759593f4985f41d3ad3b9580dfd532dfcf125695ccd4b5eff11c' \
+            < deploy/vendos-colleague/readback-mcp-candidate.cjs > "$task_dir/stdout" 2> "$task_dir/stderr" || transport_status=$?
+          python3 - "$task_dir/stdout" "$transport_status" <<'PY'
+          import datetime as dt, json, pathlib, re, sys
+          TRUE_FIELDS = {
+              'fence_access_verified_before_and_after','installed_pure_config_merge_verified',
+              'installed_request_fence_verified','installed_effective_config_guard_verified',
+              'browser_payload_serialization_verified','installed_config_service_with_memory_cache_verified',
+              'candidate_configuration_in_memory','app_mcp_catalog_verified','catalog_only_vendos_server','required_report_and_proposal_definitions',
+              'normal_mcp_role_permission_verified','catalog_used_live_tunnel',
+              'initialized','required_tools_present','only_vendos_project','project_report_read','coordinator_report_read',
+              'caller_actor_matches','shared_project_memory','can_submit','exact_scopes_read_and_submit',
+              'feedback_scope_absent','execution_scope_absent','model_scope_absent','source_sync_scope_absent',
+              'negative_feedback_vendos_denied','negative_execution_vendos_denied',
+              'negative_model_unknown_project_denied','negative_source_unknown_project_denied'}
+          FALSE_FIELDS = {'live_notebook_source_hash_read','full_runtime_config_loader_invoked','credential_values_printed',
+              'http_jwt_authentication_exercised',
+              'business_report_printed','mongodb_writes','direct_model_scope_only_test_performed','direct_source_scope_only_test_performed'}
+          ZERO_FIELDS = {'model_calls','coordinator_submissions','business_actions'}
+          PINS = {
+              'target_identity_sha256':'f855ea71e6ab3f66a7218780f15753ff27d2bf7c825416b16905aada83d33218',
+              'runtime_bundle_sha256':'5aa7b1dbecf4c9833a9c02b220cfc75b74ab6fe944682aeef0b8427931f0364f',
+              'base_config_sha256':'1c9153e513deac86b9845ecdc566173202b834f7dfafbf6179ac41fa24380c27',
+              'notebook_authorize_first_review_sha256':'728efbe1ff7f66f217776c0fbc1dbe7bc1d0bdf64acd0030a8ebab8763135673'}
+          def validate(value):
+              if not isinstance(value,dict) or type(value.get('schema')) is not int or value['schema']!=1: raise ValueError()
+              if value.get('status')=='stopped':
+                  if set(value)!={'schema','status','error_code','credential_values_printed','business_report_printed'}: raise ValueError()
+                  if value['credential_values_printed'] is not False or value['business_report_printed'] is not False: raise ValueError()
+                  if not isinstance(value['error_code'],str) or not re.fullmatch('[A-Z0-9_]{1,100}',value['error_code']): raise ValueError()
+                  return value
+              keys=TRUE_FIELDS|FALSE_FIELDS|ZERO_FIELDS|set(PINS)|{'schema','status','verified_at','mcp_url_sha256'}
+              if set(value)!=keys or value['status']!='verified': raise ValueError()
+              if any(value[k] is not True for k in TRUE_FIELDS) or any(value[k] is not False for k in FALSE_FIELDS): raise ValueError()
+              if any(type(value[k]) is not int or value[k]!=0 for k in ZERO_FIELDS): raise ValueError()
+              if any(value[k]!=v for k,v in PINS.items()): raise ValueError()
+              if not isinstance(value['mcp_url_sha256'],str) or not re.fullmatch('[a-f0-9]{64}',value['mcp_url_sha256']): raise ValueError()
+              if not isinstance(value['verified_at'],str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z',value['verified_at']): raise ValueError()
+              dt.datetime.fromisoformat(value['verified_at'].replace('Z','+00:00'))
+              return value
+          try:
+              raw=pathlib.Path(sys.argv[1]).read_text()
+              if len(raw)>16000: raise ValueError()
+              value=validate(json.loads(raw))
+          except BaseException:
+              raise SystemExit('Readback result unavailable or unsafe; private output withheld') from None
+          print(json.dumps(value,sort_keys=True))
+          if sys.argv[2]!='0' or value['status']!='verified': raise SystemExit(1)
+          PY
