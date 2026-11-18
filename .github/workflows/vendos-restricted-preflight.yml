@@ -1,0 +1,70 @@
+name: VENDOS restricted chat read-only baseline
+
+on:
+  push:
+    branches: [codex/vendos-colleague-20261118]
+    paths:
+      - .github/workflows/vendos-restricted-preflight.yml
+      - deploy/vendos-colleague/restricted-preflight.cjs
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vendos-restricted-readonly-preflight
+  cancel-in-progress: false
+
+jobs:
+  inspect:
+    if: github.repository == 'nasdum/LibreChat' && github.ref == 'refs/heads/codex/vendos-colleague-20261118'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v5
+      - name: Read only selected access metadata
+        shell: bash
+        env:
+          DEPLOY_KEY: ${{ secrets.HETZNER_SSH_KEY }}
+          DEPLOY_HOST: ${{ secrets.HETZNER_HOST }}
+          DEPLOY_PORT: ${{ secrets.HETZNER_SSH_PORT || '22' }}
+          DEPLOY_USER: ${{ secrets.HETZNER_USER || 'root' }}
+        run: |
+          set -euo pipefail
+          set +x
+          [[ "$DEPLOY_HOST" == '167.233.250.66' && "$DEPLOY_PORT" == '22' && "$DEPLOY_USER" == 'root' ]] || { echo 'Unexpected deployment target'; exit 1; }
+          [[ -n "$DEPLOY_KEY" ]] || { echo 'Existing deployment credential unavailable'; exit 1; }
+          umask 077
+          task_dir=$(mktemp -d "$RUNNER_TEMP/vendos-colleague.XXXXXX")
+          trap 'rm -f -- "$task_dir/key" "$task_dir/known_hosts" "$task_dir/stdout" "$task_dir/stderr"; rmdir -- "$task_dir"' EXIT
+          printf '%s\n' "$DEPLOY_KEY" | sed 's/\r$//' > "$task_dir/key"
+          unset DEPLOY_KEY
+          printf '%s\n' '167.233.250.66 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIH++s2lmE6yJeJsEm6w+iuMpa+vgbNEH6pzCfCGZbMct' > "$task_dir/known_hosts"
+          if ! ssh -i "$task_dir/key" -p 22 -o BatchMode=yes -o ConnectTimeout=15 \
+            -o IdentitiesOnly=yes -o ForwardAgent=no -o StrictHostKeyChecking=yes \
+            -o "UserKnownHostsFile=$task_dir/known_hosts" -o GlobalKnownHostsFile=/dev/null \
+            -o HostKeyAlgorithms=ssh-ed25519 -o LogLevel=ERROR \
+            "root@$DEPLOY_HOST" 'docker exec -i LibreChat-API node - 14322c63c114759593f4985f41d3ad3b9580dfd532dfcf125695ccd4b5eff11c' \
+            < deploy/vendos-colleague/restricted-preflight.cjs > "$task_dir/stdout" 2> "$task_dir/stderr"; then
+            echo 'Read-only preflight failed; private diagnostic output was withheld.'
+            exit 1
+          fi
+          python3 - "$task_dir/stdout" <<'PY'
+          import json, pathlib, re, sys
+          raw = pathlib.Path(sys.argv[1]).read_text()
+          candidates = [line for line in raw.splitlines() if line.startswith('{') and 'VENDOS_RESTRICTED_CHAT_PREFLIGHT_V1' in line]
+          if len(candidates) != 1:
+              raise SystemExit('Expected one safe preflight result; other output withheld')
+          obj = json.loads(candidates[0])
+          if obj.get('marker') != 'VENDOS_RESTRICTED_CHAT_PREFLIGHT_V1' or obj.get('read_only') is not True:
+              raise SystemExit('Invalid preflight marker')
+          def safe(value):
+              if value is None or isinstance(value, (bool, int, float)): return True
+              if isinstance(value, str): return len(value) <= 160 and bool(re.fullmatch(r'[A-Za-z0-9_.:/ -]*', value)) and not any(x in value.lower() for x in ['bearer ', 'sk-ant-', 'mongodb:', 'postgres:'])
+              if isinstance(value, list): return len(value) <= 50 and all(safe(x) for x in value)
+              if isinstance(value, dict): return len(value) <= 100 and all(re.fullmatch(r'[A-Za-z0-9_./-]+', k) and safe(v) for k, v in value.items())
+              return False
+          if not isinstance(obj, dict) or not safe(obj):
+              raise SystemExit('Unexpected metadata format; raw output withheld')
+          print(json.dumps(obj, sort_keys=True))
+          PY
