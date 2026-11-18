@@ -150,7 +150,7 @@ export function enforceVendosRestrictedBody(req: Request): void {
   }
   check(body.isTemporary !== true);
   const ephemeral = object(body.ephemeralAgent);
-  check(Object.entries(ephemeral).every(([key, value]) => key === 'mcp' ? Array.isArray(value) && value.every((item) => item === 'vendos_pilot') : value === false || value == null));
+  check(Object.entries(ephemeral).every(([key, value]) => key === 'mcp' ? Array.isArray(value) && value.every((item) => item === 'vendos_pilot') : value === false || value == null || (key === 'artifacts' && value === '')));
   const allowed = ['text', 'conversationId', 'parentMessageId', 'messageId', 'responseMessageId', 'clientRequestId', 'isRegenerate', 'regenerate', 'isContinued', 'clientTimestamp', 'timezone', 'generationProtocolVersion', 'expectedPredecessorCreatedAt', 'actionId', 'generationCreatedAt', 'decisions', 'answers', 'action', 'response', 'value'];
   const clean: Obj = {};
   for (const key of allowed) if (body[key] !== undefined) clean[key] = body[key];

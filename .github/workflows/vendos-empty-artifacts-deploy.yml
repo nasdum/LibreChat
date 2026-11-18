@@ -1,0 +1,106 @@
+name: VENDOS empty artifacts compatibility deployment
+
+on:
+  push:
+    branches: [codex/vendos-colleague-20261118]
+    paths: [.github/vendos-empty-artifacts-run.json]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vendos-colleague-auth-overlay
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.repository == 'nasdum/LibreChat' && github.ref == 'refs/heads/codex/vendos-colleague-20261118'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Apply the reviewed two-file compatibility patch
+        shell: bash
+        env:
+          DEPLOY_KEY: ${{ secrets.HETZNER_SSH_KEY }}
+          DEPLOY_HOST: ${{ secrets.HETZNER_HOST }}
+          DEPLOY_PORT: ${{ secrets.HETZNER_SSH_PORT || '22' }}
+          DEPLOY_USER: ${{ secrets.HETZNER_USER || 'root' }}
+        run: |
+          set -euo pipefail
+          set +x
+          [[ "$DEPLOY_HOST" == '167.233.250.66' && "$DEPLOY_PORT" == '22' && "$DEPLOY_USER" == 'root' ]] || { echo 'Unexpected deployment target'; exit 1; }
+          [[ -n "$DEPLOY_KEY" && "$GITHUB_RUN_ID" =~ ^[0-9]+$ && "$GITHUB_RUN_ATTEMPT" =~ ^[0-9]+$ ]] || { echo 'Deployment input unavailable'; exit 1; }
+          umask 077
+          task_dir=$(mktemp -d "$RUNNER_TEMP/vendos-artifacts.XXXXXX")
+          trap 'rm -f -- "$task_dir/key" "$task_dir/known_hosts" "$task_dir/payload.tar" "$task_dir/pins" "$task_dir/stdout" "$task_dir/stderr"; rmdir -- "$task_dir"' EXIT
+          python3 - "$task_dir" <<'PY'
+          import base64, hashlib, io, json, pathlib, subprocess, sys, tarfile
+          task = pathlib.Path(sys.argv[1])
+          root = pathlib.Path('deploy/vendos-colleague/empty-artifacts').resolve()
+          request_path = '.github/vendos-empty-artifacts-run.json'
+          expected = {'engine_base.py', 'tunnel_switch.py', 'launch.py', 'manifest.json',
+                      'payload/vendos.cjs', 'payload/vendos.cjs.map'}
+          def read(name, digest):
+              path = root / name
+              if path.is_symlink() or not path.resolve().is_relative_to(root): raise ValueError()
+              raw = path.read_bytes()
+              if hashlib.sha256(raw).hexdigest() != digest: raise ValueError()
+              return raw
+          try:
+              req = json.loads(pathlib.Path(request_path).read_bytes())
+              if set(req) != {'schema', 'execute', 'prepared_commit', 'pause_b64', 'pause_sha256'}: raise ValueError()
+              if req['schema'] != 1 or req['execute'] is not True: raise ValueError()
+              parent = subprocess.check_output(['git', 'rev-parse', 'HEAD^'], text=True).strip()
+              changed = subprocess.check_output(['git', 'diff', '--name-only', 'HEAD^', 'HEAD'], text=True).splitlines()
+              if req['prepared_commit'] != parent or changed != [request_path]: raise ValueError()
+              proof = base64.b64decode(req['pause_b64'], validate=True)
+              if len(proof) > 4096 or hashlib.sha256(proof).hexdigest() != req['pause_sha256']: raise ValueError()
+              release_raw = read('release-files.json', 'a12f64e643e46b3260979ef6a2a2ae97887a2065289fa8a9b2fd57d7f61bbb90')
+              release = json.loads(release_raw)
+              if release['schema'] != 1 or set(release['file_sha256']) != expected: raise ValueError()
+              files = {name: read(name, digest) for name, digest in release['file_sha256'].items()}
+              files.update({'release-files.json': release_raw, 'notebook-pause-proof.json': proof})
+              with tarfile.open(task / 'payload.tar', 'w') as archive:
+                  for name, raw in sorted(files.items()):
+                      info = tarfile.TarInfo(name)
+                      info.size, info.mode = len(raw), 0o600
+                      archive.addfile(info, io.BytesIO(raw))
+              (task / 'pins').write_text(req['pause_sha256'])
+          except Exception:
+              raise SystemExit('Artifacts release request failed integrity checks') from None
+          PY
+          pause_sha=$(cat "$task_dir/pins")
+          [[ "$pause_sha" =~ ^[a-f0-9]{64}$ ]] || exit 1
+          printf '%s\n' "$DEPLOY_KEY" | sed 's/\r$//' > "$task_dir/key"
+          unset DEPLOY_KEY
+          printf '%s\n' '167.233.250.66 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIH++s2lmE6yJeJsEm6w+iuMpa+vgbNEH6pzCfCGZbMct' > "$task_dir/known_hosts"
+          remote="umask 077; set -eu; base=/var/backups/librechat-vendos-artifacts-release; test ! -L \"\$base\"; mkdir -p \"\$base\"; test \"\$(stat -c '%u:%a' \"\$base\")\" = '0:700'; mkdir \"\$base/$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT\"; cd \"\$base/$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT\"; tar --extract --file=- --no-same-owner --no-same-permissions; exec python3 -B launch.py --execute --release-sha256 a12f64e643e46b3260979ef6a2a2ae97887a2065289fa8a9b2fd57d7f61bbb90 --pause-sha256 $pause_sha"
+          transport_status=0
+          ssh -i "$task_dir/key" -p 22 -o BatchMode=yes -o ConnectTimeout=15 \
+            -o IdentitiesOnly=yes -o ForwardAgent=no -o StrictHostKeyChecking=yes \
+            -o "UserKnownHostsFile=$task_dir/known_hosts" -o GlobalKnownHostsFile=/dev/null \
+            -o HostKeyAlgorithms=ssh-ed25519 -o LogLevel=ERROR \
+            "root@$DEPLOY_HOST" "$remote" < "$task_dir/payload.tar" \
+            > "$task_dir/stdout" 2> "$task_dir/stderr" || transport_status=$?
+          python3 - "$task_dir/stdout" "$transport_status" <<'PY'
+          import json, pathlib, re, sys
+          try:
+              result = json.loads(pathlib.Path(sys.argv[1]).read_text().splitlines()[-1])
+              booleans = {'health_ok', 'environment_unchanged', 'configuration_parity', 'only_bundle_and_map_replaced',
+                          'v3_authority_unchanged', 'owner_approval_preserved', 'original_container_retained',
+                          'external_api_calls', 'metrics_available', 'non_claude_moderation_disabled'}
+              allowed = booleans | {'status', 'error_code', 'running_jobs_observed'}
+              if not isinstance(result, dict) or set(result) - allowed: raise ValueError()
+              if result.get('status') not in {'deployed', 'stopped'}: raise ValueError()
+              if any(type(result[k]) is not bool for k in booleans & set(result)): raise ValueError()
+              if 'error_code' in result and not re.fullmatch('[A-Z_]{1,100}', result['error_code']): raise ValueError()
+              count = result.get('running_jobs_observed')
+              if count is not None and (type(count) not in (int, float) or not 0 <= count < 100000000): raise ValueError()
+          except BaseException:
+              raise SystemExit('Artifacts deployment response unavailable; inspect private backup before any retry') from None
+          print(json.dumps(result, sort_keys=True))
+          if sys.argv[2] != '0' or result['status'] != 'deployed': raise SystemExit(1)
+          PY
