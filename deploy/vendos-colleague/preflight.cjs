@@ -121,7 +121,7 @@ async function main(targetHash) {
   finally { if (client) await client.close().catch(() => {}); }
   if (cfg && !result.config) result.config = summarizeConfig(cfg, process.env, null);
   result.source_hashes = {};
-  for (const file of ['api/server/services/VendosBriefing.js','api/server/controllers/agents/request.js','packages/api/dist/vendos.cjs','api/server/services/MCP.js','api/server/services/PluginService.js']) {
+  for (const file of ['api/server/services/VendosBriefing.js','api/server/controllers/agents/request.js','packages/api/dist/vendos.cjs','api/server/services/MCP.js','api/server/services/PluginService.js','api/strategies/socialLogin.js','api/server/middleware/checkDomainAllowed.js','packages/api/package.json']) {
     try { result.source_hashes[file] = sha(fs.readFileSync(path.join('/app', file))); } catch { result.source_hashes[file] = null; }
   }
   result.status = result.errors.length ? 'partial_or_error' : 'ok';
